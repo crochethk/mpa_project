@@ -19,35 +19,10 @@ fn main() {
     println!("size_of(u8) = {}", BITS);
 
     let num = 255_u8;
-    println!("({num})_10 = ({})_2", u8_to_binary_str(num));
-
-    let num = 255_u8;
     println!("({num})_10 = ({})_2", int_to_binary_str(num));
     let num = 255_u16;
     println!("({num})_10 = ({})_2", int_to_binary_str(num));
 }
-
-///
-/// Generates a string of 0 and 1 representing the bits of the provided integer.
-///
-fn u8_to_binary_str(mut data: u8) -> String {
-    let bits: usize = get_bit_width::<u8>();
-
-    let mut result = String::new();
-    const _0001: u8 = 1; // bit mask
-
-    for _i in 0..bits {
-        let bit = data & _0001;
-        result += &bit.to_string();
-        data >>= 1;
-    }
-
-    result.chars().rev().collect()
-}
-
-// trait MyIntConstraints: PrimInt + One + ShrAssign + 'static {}
-// impl<T: PrimInt + One + ShrAssign + 'static> MyIntConstraints for T {}
-// fn int_to_binary_str<T: MyIntConstraints>(mut data: T) -> String {
 
 fn int_to_binary_str<T: PrimInt + One + ShrAssign + 'static>(mut data: T) -> String {
     let bits: usize = get_bit_width::<T>();
@@ -67,32 +42,10 @@ fn int_to_binary_str<T: PrimInt + One + ShrAssign + 'static>(mut data: T) -> Str
 ///
 /// Returns the bit count of type `T`.
 /// NOTE: The implementation is only realiable for simple primitive types!
+/// (see: "std::mem::size_of" for more info)
 ///
 fn get_bit_width<T: 'static>() -> usize {
     std::mem::size_of::<T>() * 8
-    // Won't use this for now, as repeated TypId::of might actually mitigate
-    // the advantage of not having to do the multiplication...
-    // match TypeId::of::<T>() {
-    //     // Unsigned
-    //     t if t == TypeId::of::<u8>() => 8,
-    //     t if t == TypeId::of::<u16>() => 16,
-    //     t if t == TypeId::of::<u32>() => 32,
-    //     t if t == TypeId::of::<u64>() => 64,
-    //     t if t == TypeId::of::<u128>() => 128,
-    //     // Signed
-    //     t if t == TypeId::of::<i8>() => 8,
-    //     t if t == TypeId::of::<i16>() => 16,
-    //     t if t == TypeId::of::<i32>() => 32,
-    //     t if t == TypeId::of::<i64>() => 64,
-    //     t if t == TypeId::of::<i128>() => 128,
-    //     // Floating Point
-    //     t if t == TypeId::of::<f32>() => 32,
-    //     t if t == TypeId::of::<f64>() => 64,
-    //     // Other
-    //     t if t == TypeId::of::<char>() => 4 * 8,
-
-    //     _ => std::mem::size_of::<T>() * 8,
-    // }
 }
 
 #[cfg(test)]
