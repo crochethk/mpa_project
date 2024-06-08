@@ -1,4 +1,4 @@
-use std::f64::consts::{LOG10_2, LOG2_10};
+use crate::mp_num_reader::*;
 
 fn main() {
     let num_str = "1234";
@@ -17,11 +17,6 @@ fn main() {
     println!("{num_str:?}");
 
     println!("\n---- Determining required digitd amount ----");
-    println!(
-        "Maximum amount of Bits required per decimal digit:\n{}",
-        LOG2_10
-    );
-
     let mut b_w = 2048;
     println!(
         "→ e.g. {b_w} Bit require up to → {} ← decimal digits",
@@ -58,43 +53,47 @@ fn main() {
     );
 }
 
-///
-/// Calculates amount of digits required for representing an `bit_width` binary
-/// number as decimal.
-///
-fn bit_to_dec_width(bit_width: u64) -> u64 {
-    // (bit_width as f64 / LOG2_10).ceil() as u64
-    (bit_width as f64 * LOG10_2).ceil() as u64
-}
+mod mp_num_reader {
+    use std::f64::consts::LOG10_2;
 
-///
-/// Note: uting bit_to_dec_width() we can determine in advance how many decimal digits
-/// a given bit-width number will require, so we *could* actually use fixed size arrays.
-///
-fn parse_to_digits(num: &str) -> Vec<u8> {
-    let mut digits: Vec<u8> = Vec::new();
-    for b in num.bytes() {
-        digits.push(ascii_to_digit(b).unwrap())
+    ///
+    /// Calculates amount of digits required for representing an `bit_width` binary
+    /// number as decimal.
+    ///
+    pub fn bit_to_dec_width(bit_width: u64) -> u64 {
+        // (bit_width as f64 / LOG2_10).ceil() as u64
+        (bit_width as f64 * LOG10_2).ceil() as u64
     }
-    digits
-}
 
-///
-/// Converts provided ascii character to a decimal digit
-///
-fn ascii_to_digit(ch: u8) -> Option<u8> {
-    match ch {
-        b'0' => Some(0_u8),
-        b'1' => Some(1_u8),
-        b'2' => Some(2_u8),
-        b'3' => Some(3_u8),
-        b'4' => Some(4_u8),
-        b'5' => Some(5_u8),
-        b'6' => Some(6_u8),
-        b'7' => Some(7_u8),
-        b'8' => Some(8_u8),
-        b'9' => Some(9_u8),
-        _ => None,
+    ///
+    /// Note: using bit_to_dec_width() we can determine in advance how many decimal digits
+    /// a given bit-width number will require, so we *could* actually use fixed size arrays.
+    ///
+    pub fn parse_to_digits(num: &str) -> Vec<u8> {
+        let mut digits: Vec<u8> = Vec::new();
+        for b in num.bytes() {
+            digits.push(ascii_to_digit(b).unwrap())
+        }
+        digits
+    }
+
+    ///
+    /// Converts provided digit from its ascii representation to the actual decimal digit.
+    ///
+    fn ascii_to_digit(ch: u8) -> Option<u8> {
+        match ch {
+            b'0' => Some(0_u8),
+            b'1' => Some(1_u8),
+            b'2' => Some(2_u8),
+            b'3' => Some(3_u8),
+            b'4' => Some(4_u8),
+            b'5' => Some(5_u8),
+            b'6' => Some(6_u8),
+            b'7' => Some(7_u8),
+            b'8' => Some(8_u8),
+            b'9' => Some(9_u8),
+            _ => None,
+        }
     }
 }
 
