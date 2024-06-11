@@ -113,6 +113,18 @@ mod mp_helper {
         }
 
         #[test]
+        fn test_parse_to_digits_invalid_chars() {
+            println!("TEST: Input contains invalid chars");
+            let num_str = " 123- 4";
+            let expected = vec![1, 2, 3, 4];
+            assert_eq!(parse_to_digits(num_str), expected);
+
+            let num_str = "";
+            let expected = vec![];
+            assert_eq!(parse_to_digits(num_str), expected);
+        }
+
+        #[test]
         fn test_parse_to_digits_large_nums() {
             println!("TEST: Very large number from string to a u8 digits");
             const NUM_PI_INT_1001: &str = concat!(
