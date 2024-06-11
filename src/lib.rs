@@ -1,3 +1,50 @@
+pub mod mp_uint {
+    use crate::utils::parse_to_digits;
+
+    pub struct MPuint {
+        // type MPuint = BigIntegerUnsigned;
+        width: usize,
+        data: Vec<u64>,
+    }
+
+    impl MPuint {
+        /// Creates a new instance with the desired bit-width and initialized
+        /// to `0`.
+        pub fn new(width: usize) -> Self {
+            let bin_count = usize::div_ceil(width, 64);
+            Self {
+                width,
+                data: vec![0; bin_count],
+            }
+        }
+
+        pub fn from_str(num_str: &str, width: usize) -> Self {
+            let digits: Vec<u8> = parse_to_digits(num_str);
+            /*
+            TODO add code, that computes the data vec elements based on the digits-vec:
+
+            Scenarion: num_str = "1234" ↔ 1*10^3 + 2*10^2 + 3*10^1 + 4*10^0
+            → digits = [1, 2, 3, 4]
+                        ↑  ↑  ↑  ↑
+                    i=  0  1  2  3
+            → len(digits) = 4
+            →  Calculate using Horner Schema:
+                result : MPuint = 0;
+
+                for each d in digits:
+                    /* Do: result = result * 10 + d; */
+                    result = (result << 3) + (result << 1); // == 2*2*2*x + 2*x == 10*x
+                    result = result + d;
+
+            → // TODO: implement Operators "+" and "<<" for MPuint
+
+             */
+            todo!()
+        }
+
+    }
+}
+
 pub mod utils {
     use std::f64::consts::{LOG10_2, LOG2_10};
 
