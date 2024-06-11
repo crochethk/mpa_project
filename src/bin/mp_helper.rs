@@ -1,4 +1,4 @@
-use crate::mp_num_reader::*;
+use mp_helper::*;
 
 fn main() {
     let num_str = "1234";
@@ -42,7 +42,7 @@ fn main() {
     );
 }
 
-mod mp_num_reader {
+mod mp_helper {
     use std::f64::consts::LOG10_2;
 
     ///
@@ -55,13 +55,16 @@ mod mp_num_reader {
     }
 
     ///
-    /// Note: using bit_to_dec_width() we can determine in advance how many decimal digits
-    /// a given bit-width number will require, so we *could* actually use fixed size arrays.
+    /// Parses given decimal digits string into a vector of digits.
+    /// Invalid chars are *ignored silently*.
     ///
     pub fn parse_to_digits(num: &str) -> Vec<u8> {
         let mut digits: Vec<u8> = Vec::new();
         for b in num.bytes() {
-            digits.push(digit_char_to_value(b).unwrap())
+            match digit_char_to_value(b) {
+                Some(value) => digits.push(value),
+                None => continue,
+            };
         }
         digits
     }
@@ -110,7 +113,7 @@ mod mp_num_reader {
         }
 
         #[test]
-        fn test_parse_to_digits() {
+        fn test_parse_to_digits_large_nums() {
             println!("TEST: Very large number from string to a u8 digits");
             const NUM_PI_INT_1001: &str = concat!(
                 "31415926535897932384626433832795028841971693993751",
