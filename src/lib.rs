@@ -41,8 +41,25 @@ pub mod mp_uint {
              */
             todo!()
         }
-
     }
+
+    /// Implementations for often used integer values
+    macro_rules! impl_common_val {
+        ($value_name:ident as $val:literal) => {
+            impl MPuint {
+                #[doc = concat!("Creates new instance representing `", $val, "`.")]
+                pub fn $value_name(width: usize) -> Self {
+                    let mut result = Self::new(width);
+                    result.data[0] = $val;
+                    result
+                }
+            }
+        };
+    }
+
+    impl_common_val!(one as 1);
+    impl_common_val!(two as 2);
+    impl_common_val!(ten as 10);
 }
 
 pub mod utils {
