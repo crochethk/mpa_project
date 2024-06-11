@@ -40,18 +40,33 @@ fn main() {
         "→ e.g. {b_w} Bit require up to → {} ← decimal digits",
         bit_to_dec_width(b_w)
     );
+
+    println!("----------------------");
+
+    let d_w = 4; // ~> represent up to 9999
+    println!(
+        "→ e.g. {d_w} Decimals require at least → {} ← bits",
+        dec_to_bit_width(d_w)
+    );
 }
 
 mod mp_helper {
-    use std::f64::consts::LOG10_2;
+    use std::f64::consts::{LOG10_2, LOG2_10};
 
-    ///
-    /// Calculates amount of digits required for representing an `bit_width` binary
-    /// number as decimal.
+    /// ! untested
+    /// Calculates the least amount of decimal digits required to represent a
+    /// `bit_width` binary number in base 10.
     ///
     pub fn bit_to_dec_width(bit_width: u64) -> u64 {
-        // (bit_width as f64 / LOG2_10).ceil() as u64
         (bit_width as f64 * LOG10_2).ceil() as u64
+    }
+
+    /// ! untested
+    /// Calculates the least amount of bits required to represent a `dec_width`
+    /// decimal number as binary integer.
+    ///
+    pub fn dec_to_bit_width(dec_width: u64) -> u64 {
+        (dec_width as f64 * LOG2_10).ceil() as u64
     }
 
     ///
