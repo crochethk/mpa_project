@@ -10,6 +10,8 @@ pub mod mp_uint {
     impl MPuint {
         /// Creates a new instance with the desired bit-width and initialized
         /// to `0`.
+        ///
+        /// Actual bit-width will be a multiple of 64 and *at least* `width`.
         pub fn new(width: usize) -> Self {
             let bin_count = usize::div_ceil(width, 64);
             Self {
@@ -40,6 +42,16 @@ pub mod mp_uint {
 
              */
             todo!()
+        }
+
+        /// "<<="" Operator, designed to work "inplace"
+        pub fn shift_left_assign(&mut self, rhs: usize) {
+            //TODO mockup only: multiplies each element by 2^(rhs) and prints result
+            for d in &self.data {
+                println!("{}", d << rhs)
+            }
+
+            println!("self.data: {:?}", self.data);
         }
     }
 
