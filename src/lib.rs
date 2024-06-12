@@ -18,9 +18,9 @@ pub mod mp_uint {
         /// Actual bit-width will be a multiple of `BIN_WIDTH` and *at least* `width`.
         pub fn new(width: usize) -> Self {
             let bin_count = usize::div_ceil(width, BIN_WIDTH);
-
+            let actual_width = bin_count * BIN_WIDTH;
             Self {
-                width,
+                width: actual_width,
                 data: vec![0; bin_count],
             }
         }
