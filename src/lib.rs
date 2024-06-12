@@ -44,6 +44,53 @@ pub mod mp_uint {
         }
     }
 
+    /// !untested
+    /// We want to allow comparing the actual values of different widths
+    /// (i.e. not directly returning false, when the widths differ)
+    /// Otherwise it would suffice to auto-derive
+    impl PartialEq for MPuint {
+        fn eq(&self, other: &Self) -> bool {
+            // // let same_width = self.width == other.width;
+
+            // Figure out the wider instance
+            let (big_num, small_num) = if self.width >= other.width {
+                (self, other)
+            } else {
+                (other, self)
+            };
+
+            // // if same_width {
+            // //     return big_num.data == small_num.data && small_num.data == big_num.data;
+            // // } else {
+
+            // Following code *should* automagically cover case of same data lengths...
+            let bins_delta = big_num.data.len() - small_num.data.len();
+
+            // Check whether the non-overlapping bins are populated with vals != 0
+            // On bins_delta → takes no elements → false
+            let excess_is_zero = big_num.data.iter().rev().take(bins_delta).all(|d| *d == 0);
+
+            // // !! OUT OF DATE !!
+            // // if is_excess_gt_zero {
+            // //     return false;
+            // // }
+            // // else {
+            // //     // compare overlapping part
+            // //     return big_num.data[0..(big_num.data.len() - bins_delta)] == small_num.data;
+            // // }
+
+            {
+                excess_is_zero
+                    // compare overlapping part, if non-overlapping part is zero
+                    && big_num.data[0..(big_num.data.len() - bins_delta)] == small_num.data
+            }
+
+            // // }
+
+            // // self.width == other.width && self.data == other.data
+        }
+    }
+
     impl MPuint {
         /// Creates a new instance with the desired bit-width and initialized
         /// to `0`.
@@ -58,6 +105,7 @@ pub mod mp_uint {
             }
         }
 
+        #[allow(warnings)]
         pub fn from_str(num_str: &str, width: usize) -> Self {
             let digits: Vec<u8> = parse_to_digits(num_str);
             /*
