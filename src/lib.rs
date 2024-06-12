@@ -49,14 +49,19 @@ pub mod mp_uint {
             todo!()
         }
 
-        /// "<<="" Operator, designed to work "inplace"
-        pub fn shift_left_assign(&mut self, rhs: usize) {
-            //TODO mockup only: multiplies each element by 2^(rhs) and prints result
-            for d in &self.data {
-                println!("{}", d << rhs)
-            }
+        /// Binary string, starting with MSB, ending with LSB on the right
+        pub fn to_binary_string(&self) -> String {
+            let mut result = String::new();
 
-            println!("self.data: {:?}", self.data);
+            for d in self.data.iter().rev() {
+                result += &crate::bit_utils::int_to_binary_str(*d);
+            }
+            result
+        }
+        /// "<<="" Operator, designed to work "inplace"
+    impl Display for MPuint {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.to_binary_string())
         }
     }
 
