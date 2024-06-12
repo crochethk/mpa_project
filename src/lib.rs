@@ -58,7 +58,35 @@ pub mod mp_uint {
             }
             result
         }
+
+        #[allow(warnings)]
         /// "<<="" Operator, designed to work "inplace"
+        pub fn shift_left_assign(&mut self, rhs: u32) {
+            assert!((rhs as usize) < self.width);
+            // TODO prevent underlying "<<" from panicing on `rhs ≥ BIN_WIDTH`
+            // we probably must split rhs into several iterations
+            // with each shifting `< BIN_WIDTH` bits.
+            // Required iterations: (rhs / BIN_WIDTH).ceil()
+
+            let mut overflow = 0_u64;
+            for i in 0..self.data.len() {
+                let v = self.data[i];
+                let v_shl = v << rhs;
+                let v_rtl = v.rotate_left(rhs);
+
+                // Append last overflow
+                self.data[i] = v_shl | overflow;
+                // Update overflow
+                overflow = v_shl ^ v_rtl;
+            }
+
+            // here we could panic! if `overflow != 0`, which would mean that
+            // the number as a whole overflowed.
+            // Actually we could do this check in advance by checking where the last `1`
+            // is in the last bin and compare to `rhs` accordingly.
+        }
+    }
+
     impl Display for MPuint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.to_binary_string())
