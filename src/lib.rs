@@ -1,6 +1,10 @@
 pub mod mp_uint {
     use crate::utils::parse_to_digits;
+    use std::fmt::Display;
 
+    pub const BIN_WIDTH: usize = 64; // DO NOT CHANGE
+
+    #[derive(Debug, Clone)]
     pub struct MPuint {
         // type MPuint = BigIntegerUnsigned;
         width: usize,
@@ -11,9 +15,10 @@ pub mod mp_uint {
         /// Creates a new instance with the desired bit-width and initialized
         /// to `0`.
         ///
-        /// Actual bit-width will be a multiple of 64 and *at least* `width`.
+        /// Actual bit-width will be a multiple of `BIN_WIDTH` and *at least* `width`.
         pub fn new(width: usize) -> Self {
-            let bin_count = usize::div_ceil(width, 64);
+            let bin_count = usize::div_ceil(width, BIN_WIDTH);
+
             Self {
                 width,
                 data: vec![0; bin_count],
