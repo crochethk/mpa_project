@@ -6,7 +6,6 @@ pub mod mp_uint {
 
     #[derive(Debug, Clone)]
     pub struct MPuint {
-        // type MPuint = BigIntegerUnsigned;
         width: usize,
         data: Vec<u64>,
     }
@@ -14,7 +13,6 @@ pub mod mp_uint {
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPuint {
         fn shl_assign(&mut self, mut shift_distance: u32) {
-            // // self.shift_left_assign(shift_distance);
             assert!((shift_distance as usize) < self.width);
             const MAX_STEP: u32 = BIN_WIDTH - 1;
 
@@ -50,18 +48,12 @@ pub mod mp_uint {
     /// Otherwise it would suffice to auto-derive
     impl PartialEq for MPuint {
         fn eq(&self, other: &Self) -> bool {
-            // // let same_width = self.width == other.width;
-
             // Figure out the wider instance
             let (big_num, small_num) = if self.width >= other.width {
                 (self, other)
             } else {
                 (other, self)
             };
-
-            // // if same_width {
-            // //     return big_num.data == small_num.data && small_num.data == big_num.data;
-            // // } else {
 
             // Following code *should* automagically cover case of same data lengths...
             let bins_delta = big_num.data.len() - small_num.data.len();
@@ -70,24 +62,11 @@ pub mod mp_uint {
             // On bins_delta → takes no elements → false
             let excess_is_zero = big_num.data.iter().rev().take(bins_delta).all(|d| *d == 0);
 
-            // // !! OUT OF DATE !!
-            // // if is_excess_gt_zero {
-            // //     return false;
-            // // }
-            // // else {
-            // //     // compare overlapping part
-            // //     return big_num.data[0..(big_num.data.len() - bins_delta)] == small_num.data;
-            // // }
-
             {
                 excess_is_zero
                     // compare overlapping part, if non-overlapping part is zero
                     && big_num.data[0..(big_num.data.len() - bins_delta)] == small_num.data
             }
-
-            // // }
-
-            // // self.width == other.width && self.data == other.data
         }
     }
 
