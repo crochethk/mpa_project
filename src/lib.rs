@@ -59,25 +59,29 @@ pub mod mp_uint {
             result
         }
 
-        #[allow(warnings)]
         /// "<<="" Operator, designed to work "inplace"
-        pub fn shift_left_assign(&mut self, rhs: u32) {
-            assert!((rhs as usize) < self.width);
+        pub fn shift_left_assign(&mut self, mut shift_distance: u32) {
+            assert!((shift_distance as usize) < self.width);
             // TODO prevent underlying "<<" from panicing on `rhs ≥ BIN_WIDTH`
-            // we probably must split rhs into several iterations
-            // with each shifting `< BIN_WIDTH` bits.
-            // Required iterations: (rhs / BIN_WIDTH).ceil()
+            const MAX_STEP: u32 = BIN_WIDTH - 1;
 
-            let mut overflow = 0_u64;
-            for i in 0..self.data.len() {
-                let v = self.data[i];
-                let v_shl = v << rhs;
-                let v_rtl = v.rotate_left(rhs);
+            let mut sh_step;
+            while shift_distance > 0 {
+                sh_step = shift_distance.min(MAX_STEP);
 
-                // Append last overflow
-                self.data[i] = v_shl | overflow;
-                // Update overflow
-                overflow = v_shl ^ v_rtl;
+                let mut overflow = 0_u64;
+                for i in 0..self.data.len() {
+                    let v = self.data[i];
+                    let v_shl = v << sh_step;
+                    let v_rtl = v.rotate_left(sh_step);
+
+                    // Append last overflow
+                    self.data[i] = v_shl | overflow;
+                    // Update overflow
+                    overflow = v_shl ^ v_rtl;
+                }
+
+                shift_distance -= sh_step;
             }
 
             // here we could panic! if `overflow != 0`, which would mean that
