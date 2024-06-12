@@ -1,6 +1,6 @@
 pub mod mp_uint {
     use crate::utils::parse_to_digits;
-    use std::fmt::Display;
+    use std::{fmt::Display, ops::ShlAssign};
 
     pub const BIN_WIDTH: u32 = 64; // DO NOT CHANGE
 
@@ -9,6 +9,39 @@ pub mod mp_uint {
         // type MPuint = BigIntegerUnsigned;
         width: usize,
         data: Vec<u64>,
+    }
+
+    /// inplace `<<=` operator
+    impl ShlAssign<u32> for MPuint {
+        fn shl_assign(&mut self, mut shift_distance: u32) {
+            // // self.shift_left_assign(shift_distance);
+            assert!((shift_distance as usize) < self.width);
+            const MAX_STEP: u32 = BIN_WIDTH - 1;
+
+            let mut sh_step;
+            while shift_distance > 0 {
+                sh_step = shift_distance.min(MAX_STEP);
+
+                let mut overflow = 0_u64;
+                for i in 0..self.data.len() {
+                    let v = self.data[i];
+                    let v_shl = v << sh_step;
+                    let v_rtl = v.rotate_left(sh_step);
+
+                    // Append last overflow
+                    self.data[i] = v_shl | overflow;
+                    // Update overflow
+                    overflow = v_shl ^ v_rtl;
+                }
+
+                shift_distance -= sh_step;
+            }
+
+            // here we could panic! if `overflow != 0`, which would mean that
+            // the number as a whole overflowed.
+            // Actually we could do this check in advance by checking where the last `1`
+            // is in the last bin and compare to `rhs` accordingly.
+        }
     }
 
     impl MPuint {
@@ -57,37 +90,6 @@ pub mod mp_uint {
                 result += &crate::bit_utils::int_to_binary_str(*d);
             }
             result
-        }
-
-        /// "<<="" Operator, designed to work "inplace"
-        pub fn shift_left_assign(&mut self, mut shift_distance: u32) {
-            assert!((shift_distance as usize) < self.width);
-            // TODO prevent underlying "<<" from panicing on `rhs ≥ BIN_WIDTH`
-            const MAX_STEP: u32 = BIN_WIDTH - 1;
-
-            let mut sh_step;
-            while shift_distance > 0 {
-                sh_step = shift_distance.min(MAX_STEP);
-
-                let mut overflow = 0_u64;
-                for i in 0..self.data.len() {
-                    let v = self.data[i];
-                    let v_shl = v << sh_step;
-                    let v_rtl = v.rotate_left(sh_step);
-
-                    // Append last overflow
-                    self.data[i] = v_shl | overflow;
-                    // Update overflow
-                    overflow = v_shl ^ v_rtl;
-                }
-
-                shift_distance -= sh_step;
-            }
-
-            // here we could panic! if `overflow != 0`, which would mean that
-            // the number as a whole overflowed.
-            // Actually we could do this check in advance by checking where the last `1`
-            // is in the last bin and compare to `rhs` accordingly.
         }
     }
 
