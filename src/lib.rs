@@ -147,6 +147,14 @@ pub mod mp_uint {
 
 pub mod utils {
     use std::f64::consts::{LOG10_2, LOG2_10};
+    use std::ops::{Div, Rem};
+
+    /// Simple Division with remainder, i.e. `a = q*b + r`, where `(q, r)` is the
+    /// returned result.
+    pub fn div_with_rem<T: Div<Output = T> + Rem<Output = T> + Copy>(a: T, b: T) -> (T, T) {
+        // These two operations are optimized away into one assembly instruction
+        (a / b, a % b)
+    }
 
     /// ! untested
     /// Calculates the least amount of decimal digits required to represent a
