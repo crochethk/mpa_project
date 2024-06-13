@@ -2,25 +2,29 @@ pub mod mp_uint {
     use crate::utils::parse_to_digits;
     use std::{fmt::Display, ops::ShlAssign};
 
-    pub const BIN_WIDTH: u32 = 64; // DO NOT CHANGE
+    /// Type of elements representing individual digits and number of Bits per digit
+    /// of the internal number system. \
+    /// __DO NOT CHANGE__
+    type DigitT = u64;
+    const DIGIT_BITS: u32 = 64;
 
     #[derive(Debug, Clone)]
     pub struct MPuint {
         width: usize,
-        data: Vec<u64>,
+        data: Vec<DigitT>,
     }
 
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPuint {
         fn shl_assign(&mut self, mut shift_distance: u32) {
             assert!((shift_distance as usize) < self.width);
-            const MAX_STEP: u32 = BIN_WIDTH - 1;
+            const MAX_STEP: u32 = DIGIT_BITS - 1;
 
             let mut sh_step;
             while shift_distance > 0 {
                 sh_step = shift_distance.min(MAX_STEP);
 
-                let mut overflow = 0_u64;
+                let mut overflow = 0 as DigitT;
                 for i in 0..self.data.len() {
                     let v = self.data[i];
                     let v_shl = v << sh_step;
@@ -74,10 +78,10 @@ pub mod mp_uint {
         /// Creates a new instance with the desired bit-width and initialized
         /// to `0`.
         ///
-        /// Actual bit-width will be a multiple of `BIN_WIDTH` and *at least* `width`.
+        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
         pub fn new(width: usize) -> Self {
-            let bin_count = width.div_ceil(BIN_WIDTH as usize);
-            let actual_width = bin_count * BIN_WIDTH as usize;
+            let bin_count = width.div_ceil(DIGIT_BITS as usize);
+            let actual_width = bin_count * DIGIT_BITS as usize;
             Self {
                 width: actual_width,
                 data: vec![0; bin_count],
