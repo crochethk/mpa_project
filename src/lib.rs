@@ -37,7 +37,7 @@ pub mod mp_uint {
         }
     }
 
-    /// Iterator for the digits
+    /// Iterator for the digits (enables `for`-loop)
     impl<'a> IntoIterator for &'a MPuint {
         type Item = &'a DigitT;
         type IntoIter = Iter<'a, DigitT>;
@@ -51,7 +51,7 @@ pub mod mp_uint {
     impl MPuint {
         /// Alias for `into_iter()`
         pub fn iter(&self) -> Iter<DigitT> {
-            self.data.iter()
+            self.into_iter()
         }
 
         /// !untested
@@ -96,13 +96,13 @@ pub mod mp_uint {
                 (q, last_r) = div_with_rem(dividend, divisor);
 
                 // Write digit
-                quotient.data[(self.len() - 1) - i] = q as u64;
+                quotient[(self.len() - 1) - i] = q as u64;
             }
 
             (quotient, last_r as u64)
         }
 
-        /// Gets number of digits of the interal representation.
+        /// Gets max number of digits (in regards to the internal radix).
         fn len(&self) -> usize {
             self.data.len()
         }
@@ -140,12 +140,12 @@ pub mod mp_uint {
 
                 let mut overflow = 0 as DigitT;
                 for i in 0..self.len() {
-                    let v = self.data[i];
+                    let v = self[i];
                     let v_shl = v << sh_step;
                     let v_rtl = v.rotate_left(sh_step);
 
                     // Append last overflow
-                    self.data[i] = v_shl | overflow;
+                    self[i] = v_shl | overflow;
                     // Update overflow
                     overflow = v_shl ^ v_rtl;
                 }
@@ -178,7 +178,7 @@ pub mod mp_uint {
 
             // Check whether the non-overlapping bins are populated with vals != 0
             // On bins_delta → takes no elements → false
-            let excess_is_zero = big_num.data.iter().rev().take(bins_delta).all(|d| *d == 0);
+            let excess_is_zero = big_num.iter().rev().take(bins_delta).all(|d| *d == 0);
 
             {
                 excess_is_zero
@@ -189,8 +189,7 @@ pub mod mp_uint {
     }
 
     impl MPuint {
-        /// Creates a new instance with the desired bit-width and initialized
-        /// to `0`.
+        /// Creates a new instance with the desired bit-width and initialized to `0`.
         ///
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
         pub fn new(width: usize) -> Self {
@@ -231,7 +230,7 @@ pub mod mp_uint {
         pub fn to_binary_string(&self) -> String {
             let mut result = String::new();
 
-            for d in self.data.iter().rev() {
+            for d in self.iter().rev() {
                 result += &crate::bit_utils::int_to_binary_str(*d);
             }
             result
