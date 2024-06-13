@@ -24,13 +24,17 @@ pub mod mp_uint {
             self.data.iter()
         }
     }
+
     impl MPuint {
         /// Alias for `into_iter()`
         pub fn iter(&self) -> Iter<DigitT> {
             self.data.iter()
         }
+        /// Gets number of digits of the interal representation.
+        fn len(&self) -> usize {
+            self.data.len()
+        }
     }
-
 
     // // impl Div<Self> for &MPuint {
     // //     type Output = MPuint;
@@ -81,7 +85,7 @@ pub mod mp_uint {
                 sh_step = shift_distance.min(MAX_STEP);
 
                 let mut overflow = 0 as DigitT;
-                for i in 0..self.data.len() {
+                for i in 0..self.len() {
                     let v = self.data[i];
                     let v_shl = v << sh_step;
                     let v_rtl = v.rotate_left(sh_step);
@@ -116,7 +120,7 @@ pub mod mp_uint {
             };
 
             // Following code *should* automagically cover case of same data lengths...
-            let bins_delta = big_num.data.len() - small_num.data.len();
+            let bins_delta = big_num.len() - small_num.len();
 
             // Check whether the non-overlapping bins are populated with vals != 0
             // On bins_delta → takes no elements → false
@@ -125,7 +129,7 @@ pub mod mp_uint {
             {
                 excess_is_zero
                     // compare overlapping part, if non-overlapping part is zero
-                    && big_num.data[0..(big_num.data.len() - bins_delta)] == small_num.data
+                    && big_num.data[0..(big_num.len() - bins_delta)] == small_num.data
             }
         }
     }
