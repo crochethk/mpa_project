@@ -31,6 +31,45 @@ pub mod mp_uint {
         }
     }
 
+
+    // // impl Div<Self> for &MPuint {
+    // //     type Output = MPuint;
+    // //     fn div(self, rhs: Self) -> Self::Output {
+    // //         todo!()
+    // //     }
+    // // }
+
+    // // impl Div<u64> for &MPuint {
+    // //     type Output = u64;
+
+    // //     fn div(self, divisor: u64) -> Self::Output {
+    // //         // TODO: Take into account possibly differing operand widths
+    // //         // TODO Probably simply extend the shorter to match the wider
+    // //         // // a = q*b + r
+    // //         // let mut result = 0;
+    // //         // let mut rem_sum = 0;
+    // //         // for i in (self.data.len() - 1)..=0 {
+    // //         //     let dividend = self.data[i];
+    // //         //     let divisor = rhs.data[i];
+
+    // //         //     println!("i={}: {}", i, dividend);
+    // //         //     println!("i={}: {}\n", i, divisor);
+
+    // //         //     let (q, rem) = div_with_rem(dividend, divisor);
+    // //         //     result += q;
+    // //         //     rem_sum += rem;
+    // //         // }
+    // //         // result += rem_sum/
+    // //         // result
+    // //         42
+    // //     }
+
+    // //     // fn div(&self, rhs: &Self) -> Self::Output {
+    // //     //     let a = self.data;
+    // //     //     return 123;
+    // //     // }
+    // // }
+
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPuint {
         fn shl_assign(&mut self, mut shift_distance: u32) {
