@@ -2,7 +2,7 @@ pub mod mp_uint {
     use crate::utils::{div_with_rem, parse_to_digits};
     use std::{
         fmt::Display,
-        ops::{Index, IndexMut, ShlAssign},
+        ops::{Div, Index, IndexMut, Rem, ShlAssign},
         slice::Iter,
     };
 
@@ -108,6 +108,25 @@ pub mod mp_uint {
         }
     }
 
+    /// ! untested, NOT EVEN BY HAND
+    /// `/` Operator for `DigitT` divisor
+    impl Div<DigitT> for &MPuint {
+        type Output = MPuint;
+
+        fn div(self, divisor: DigitT) -> Self::Output {
+            self.div_with_rem(divisor).0
+        }
+    }
+
+    /// ! untested, NOT EVEN BY HAND
+    /// `%` Operator for `DigitT` divisor
+    impl Rem<DigitT> for &MPuint {
+        type Output = DigitT;
+
+        fn rem(self, divisor: DigitT) -> Self::Output {
+            self.div_with_rem(divisor).1
+        }
+    }
 
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPuint {
