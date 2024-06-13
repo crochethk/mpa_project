@@ -1,12 +1,18 @@
 pub mod mp_uint {
-    use crate::utils::parse_to_digits;
-    use std::{fmt::Display, ops::ShlAssign, slice::Iter};
+    use crate::utils::{div_with_rem, parse_to_digits};
+    use std::{
+        fmt::Display,
+        ops::ShlAssign,
+        slice::Iter,
+    };
 
     /// Type of elements representing individual digits and number of Bits per digit
     /// of the internal number system. \
     /// __DO NOT CHANGE__
     type DigitT = u64;
     const DIGIT_BITS: u32 = 64;
+    // Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
+    // for those calculations while only ≤128bit are available "nativelly".
 
     #[derive(Debug, Clone)]
     pub struct MPuint {
@@ -30,49 +36,61 @@ pub mod mp_uint {
         pub fn iter(&self) -> Iter<DigitT> {
             self.data.iter()
         }
+
+        /// !untested
+        /// Calculates quotient and remainder using the given _native_ integer
+        /// divisor.
+        ///
+        /// ### Footnote
+        /// Since how division works, the remainder will always be `0 ≤ rem < divisor`.
+        /// Therefore remainder and divisor can be represented by the same type.
+        ///
+        /// ### Algorithm Description
+        /// - Division Term: `A = q*b + r`
+        ///     - A = self
+        ///     - b = divisor
+        ///     - r = remainder
+        ///     - q = quotient
+        /// - to divide `self` by `divisor`:
+        ///     - init `quotient` with appropriate width
+        ///     - divide each d in self.data, in reverse order (starting with "MSB")
+        ///         - calculate:
+        ///         ```
+        ///         base = 2^digit_bits
+        ///         dividend = last_r*base + d // "puts last remainder infront of next digit"
+        ///         q, last_r = div_with_rem(divident, divisor)
+        ///         ```
+        ///         - write q to quotient.data.reverse()[i]
+        /// - last `last_r` is result remainder
+        ///
+        pub fn div_with_rem(&self, divisor: DigitT) -> (Self, DigitT) {
+            let mut quotient = Self::new(self.width);
+
+            let divisor = divisor as u128;
+            let mut last_r = 0u128;
+            // Start with most significant digit
+            for (i, d) in self.iter().rev().enumerate() {
+                let d = *d as u128;
+                // "Prefix" d with last_r (multiplies last_r by `2^digit_bits`)
+                let dividend = (last_r << DIGIT_BITS) + d;
+
+                // Important: "0 ≤ r_i ≤ DigitT::MAX" and "0 ≤ q ≤ DigitT::MAX" ← unsure 'bout the latter
+                let q;
+                (q, last_r) = div_with_rem(dividend, divisor);
+
+                // Write digit
+                quotient.data[(self.len() - 1) - i] = q as u64;
+            }
+
+            (quotient, last_r as u64)
+        }
+
         /// Gets number of digits of the interal representation.
         fn len(&self) -> usize {
             self.data.len()
         }
     }
 
-    // // impl Div<Self> for &MPuint {
-    // //     type Output = MPuint;
-    // //     fn div(self, rhs: Self) -> Self::Output {
-    // //         todo!()
-    // //     }
-    // // }
-
-    // // impl Div<u64> for &MPuint {
-    // //     type Output = u64;
-
-    // //     fn div(self, divisor: u64) -> Self::Output {
-    // //         // TODO: Take into account possibly differing operand widths
-    // //         // TODO Probably simply extend the shorter to match the wider
-    // //         // // a = q*b + r
-    // //         // let mut result = 0;
-    // //         // let mut rem_sum = 0;
-    // //         // for i in (self.data.len() - 1)..=0 {
-    // //         //     let dividend = self.data[i];
-    // //         //     let divisor = rhs.data[i];
-
-    // //         //     println!("i={}: {}", i, dividend);
-    // //         //     println!("i={}: {}\n", i, divisor);
-
-    // //         //     let (q, rem) = div_with_rem(dividend, divisor);
-    // //         //     result += q;
-    // //         //     rem_sum += rem;
-    // //         // }
-    // //         // result += rem_sum/
-    // //         // result
-    // //         42
-    // //     }
-
-    // //     // fn div(&self, rhs: &Self) -> Self::Output {
-    // //     //     let a = self.data;
-    // //     //     return 123;
-    // //     // }
-    // // }
 
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPuint {
@@ -213,6 +231,7 @@ pub mod utils {
     use std::f64::consts::{LOG10_2, LOG2_10};
     use std::ops::{Div, Rem};
 
+    /// !untested
     /// Simple Division with remainder, i.e. `a = q*b + r`, where `(q, r)` is the
     /// returned result.
     pub fn div_with_rem<T: Div<Output = T> + Rem<Output = T> + Copy>(a: T, b: T) -> (T, T) {
