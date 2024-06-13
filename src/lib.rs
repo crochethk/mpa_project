@@ -1,6 +1,6 @@
 pub mod mp_uint {
     use crate::utils::parse_to_digits;
-    use std::{fmt::Display, ops::ShlAssign};
+    use std::{fmt::Display, ops::ShlAssign, slice::Iter};
 
     /// Type of elements representing individual digits and number of Bits per digit
     /// of the internal number system. \
@@ -12,6 +12,23 @@ pub mod mp_uint {
     pub struct MPuint {
         width: usize,
         data: Vec<DigitT>,
+    }
+
+    /// Iterator for the digits
+    impl<'a> IntoIterator for &'a MPuint {
+        type Item = &'a DigitT;
+        type IntoIter = Iter<'a, DigitT>;
+
+        /// Iterator yields individual digits starting with __least significant__
+        fn into_iter(self) -> Self::IntoIter {
+            self.data.iter()
+        }
+    }
+    impl MPuint {
+        /// Alias for `into_iter()`
+        pub fn iter(&self) -> Iter<DigitT> {
+            self.data.iter()
+        }
     }
 
     /// inplace `<<=` operator
