@@ -519,16 +519,16 @@ pub mod bit_utils {
         #[test]
         #[rustfmt::skip]
         fn test_int_to_binary_str() {
-            assert_eq!(int_to_binary_str(-2 as i32),  "11111111111111111111111111111110");
-            assert_eq!(int_to_binary_str(-1 as i32),  "11111111111111111111111111111111");
-            assert_eq!(int_to_binary_str(0 as i32),   "00000000000000000000000000000000");
-            assert_eq!(int_to_binary_str(1 as i32),   "00000000000000000000000000000001");
-            assert_eq!(int_to_binary_str(2 as i32),   "00000000000000000000000000000010");
-            assert_eq!(int_to_binary_str(3 as i32),   "00000000000000000000000000000011");
-            assert_eq!(int_to_binary_str(4 as i32),   "00000000000000000000000000000100");
-            assert_eq!(int_to_binary_str(127 as i32), "00000000000000000000000001111111");
-            assert_eq!(int_to_binary_str(u32::MAX),   "11111111111111111111111111111111");
-            assert_eq!(int_to_binary_str(2_147_483_648 as u32), "10000000000000000000000000000000");
+            assert_eq!(int_to_binary_str(-2 as i32),  "1111 1111 1111 1111 1111 1111 1111 1110");
+            assert_eq!(int_to_binary_str(-1 as i32),  "1111 1111 1111 1111 1111 1111 1111 1111");
+            assert_eq!(int_to_binary_str(0 as i32),   "0000 0000 0000 0000 0000 0000 0000 0000");
+            assert_eq!(int_to_binary_str(1 as i32),   "0000 0000 0000 0000 0000 0000 0000 0001");
+            assert_eq!(int_to_binary_str(2 as i32),   "0000 0000 0000 0000 0000 0000 0000 0010");
+            assert_eq!(int_to_binary_str(3 as i32),   "0000 0000 0000 0000 0000 0000 0000 0011");
+            assert_eq!(int_to_binary_str(4 as i32),   "0000 0000 0000 0000 0000 0000 0000 0100");
+            assert_eq!(int_to_binary_str(127 as i32), "0000 0000 0000 0000 0000 0000 0111 1111");
+            assert_eq!(int_to_binary_str(u32::MAX),   "1111 1111 1111 1111 1111 1111 1111 1111");
+            assert_eq!(int_to_binary_str(2_147_483_648 as u32), "1000 0000 0000 0000 0000 0000 0000 0000");
         }
     }
 }
