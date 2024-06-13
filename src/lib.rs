@@ -2,7 +2,7 @@ pub mod mp_uint {
     use crate::utils::{div_with_rem, parse_to_digits};
     use std::{
         fmt::Display,
-        ops::ShlAssign,
+        ops::{Index, IndexMut, ShlAssign},
         slice::Iter,
     };
 
@@ -18,6 +18,23 @@ pub mod mp_uint {
     pub struct MPuint {
         width: usize,
         data: Vec<DigitT>,
+    }
+
+    /// Indexing type
+    type Idx = usize;
+    impl IndexMut<Idx> for MPuint {
+        /// Mutable access to digits (with base 2^DIGIT_BITS).
+        fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+            &mut self.data[index]
+        }
+    }
+    impl Index<Idx> for MPuint {
+        type Output = DigitT;
+
+        /// Immutable access to digits (with base 2^DIGIT_BITS).
+        fn index(&self, index: Idx) -> &Self::Output {
+            &self.data[index]
+        }
     }
 
     /// Iterator for the digits
