@@ -424,12 +424,18 @@ pub mod bit_utils {
     use std::ops::ShrAssign;
 
     pub fn int_to_binary_str<T: PrimInt + One + ShrAssign + 'static>(mut data: T) -> String {
+        const BLOCK_WIDTH: usize = 4;
+        const DELIM: &str = " ";
+
         let bits: usize = get_bit_width::<T>();
 
         let mut result = String::new();
         let _0001: T = T::one(); // bit mask
 
-        for _i in 0..bits {
+        for i in 0..bits {
+            if (i != 0) && (i % BLOCK_WIDTH == 0) {
+                result += DELIM;
+            }
             let bit_is_1 = (data & _0001) == _0001;
             result += if bit_is_1 { "1" } else { "0" };
             data >>= T::one();
