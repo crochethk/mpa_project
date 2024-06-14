@@ -2,10 +2,10 @@ pub mod bit_utils;
 pub mod utils;
 
 pub mod mp_uint {
-    use crate::utils::{div_with_rem, parse_to_digits};
+    use crate::utils::{add_with_carry, div_with_rem, parse_to_digits};
     use std::{
         fmt::Display,
-        ops::{Div, Index, IndexMut, Rem, ShlAssign},
+        ops::{Add, Div, Index, IndexMut, Rem, ShlAssign},
         slice::Iter,
     };
 
@@ -118,6 +118,34 @@ pub mod mp_uint {
                 (other, self)
             };
             (wide, short)
+        }
+    }
+
+    /// !untested
+    impl Add for &MPuint {
+        type Output = MPuint;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            let (wide, short) = self.order_by_width(rhs);
+            let mut sum = wide.clone();
+            let mut carry: bool = false;
+
+            // Carry-Ripple add overlapping bins
+            for i in 0..short.len() {
+                let digit: DigitT;
+                (digit, carry) = add_with_carry(wide[i], short[i], carry);
+                sum[i] = digit;
+            }
+
+            // Carry-Ripple add remaining carry to non-overlapping bins
+            for i in short.len()..wide.len() {
+                let digit: DigitT;
+                (digit, carry) = add_with_carry(wide[i], 0, carry);
+                sum[i] = digit;
+            }
+            assert!(!carry, "Overlfow occured");
+
+            sum
         }
     }
 
