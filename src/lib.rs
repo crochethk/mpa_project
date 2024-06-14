@@ -266,6 +266,35 @@ pub mod utils {
     use std::f64::consts::{LOG10_2, LOG2_10};
     use std::ops::{Div, Rem};
 
+    /// Basically a full adder for `u64`
+    ///
+    /// ## Explanation
+    /// - Adding `lhs` to `rhs` can _at most_ have a result of `2^64 + 2^64-1`.
+    ///     - This is similar to "carry-bit + `u64::MAX-1`"
+    /// - If the `carry` input was provided, the total maximum sum will then at
+    /// most saturate the lower "bit"
+    /// - The implication is, that there is no way, that both additions will result
+    /// in a carry-bit simultaneously
+    /// - So it's safe to say, that in the worst-case the end result will be a
+    /// saturated "u64 value + carry-bit"
+    /// - Simplified example using a ficitonal u4:
+    ///     ```
+    ///     Inputs: lhs=rhs=1111, carry=1
+    ///
+    ///             1111          1110 (r1)
+    ///           + 1111        + 0001 (input carry)
+    ///     c1= 1 ← ¹¹¹     ==>
+    ///         ––––––––        ––––––
+    ///     r1=     1110          1111
+    ///
+    ///     ==> Endresult: (1111, c1)
+    ///     ```
+    pub fn add_with_carry(lhs: u64, rhs: u64, mut carry: bool) -> (u64, bool) {
+        let (mut sum, c) = lhs.overflowing_add(rhs);
+        (sum, carry) = sum.overflowing_add(carry as u64);
+        (sum, carry || c)
+    }
+
     /// !untested
     /// Simple Division with remainder, i.e. `a = q*b + r`, where `(q, r)` is the
     /// returned result.
@@ -327,6 +356,58 @@ pub mod utils {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        mod test_add_with_carry {
+            use super::*;
+            const MAX: u64 = u64::MAX;
+            const CARRY: bool = true;
+
+            #[test]
+            // TC1,2
+            fn both_summands_zero() {
+                assert_eq!(add_with_carry(0, 0, !CARRY), (0, false));
+                assert_eq!(add_with_carry(0, 0, CARRY), (1, false));
+            }
+
+            #[test]
+            // TC3,4
+            fn both_summands_max() {
+                assert_eq!(add_with_carry(MAX, MAX, !CARRY), (MAX - 1, true));
+                assert_eq!(add_with_carry(MAX, MAX, CARRY), (MAX, true));
+            }
+
+            #[test]
+            /// TC5,6,7,8
+            fn one_summand_max_other_zero() {
+                assert_eq!(add_with_carry(MAX, 0, !CARRY), (MAX, false));
+                assert_eq!(add_with_carry(MAX, 0, CARRY), (0, true));
+                assert_eq!(add_with_carry(0, MAX, !CARRY), (MAX, false));
+                assert_eq!(add_with_carry(0, MAX, CARRY), (0, true));
+            }
+
+            #[test]
+            // TC9,10
+            fn single_summand_plus_carry() {
+                assert_eq!(add_with_carry(MAX, 0, !CARRY), (MAX, false));
+                assert_eq!(add_with_carry(MAX, 0, CARRY), (0, true));
+                assert_eq!(add_with_carry(0, MAX, !CARRY), (MAX, false));
+                assert_eq!(add_with_carry(0, MAX, CARRY), (0, true));
+            }
+
+            #[test]
+            // TC11,12
+            fn add_normal_values() {
+                assert_eq!(add_with_carry(123, 456, !CARRY), (579, false));
+                assert_eq!(add_with_carry(123, 456, CARRY), (580, false));
+            }
+
+            #[test]
+            /// TC13,14
+            fn one_summand_max_other_normal() {
+                assert_eq!(add_with_carry(MAX, 42, !CARRY), (41, true));
+                assert_eq!(add_with_carry(42, MAX, !CARRY), (41, true));
+            }
+        }
 
         mod test_digit_char_to_value {
             use super::*;
