@@ -109,9 +109,18 @@ pub mod mp_uint {
         fn len(&self) -> usize {
             self.data.len()
         }
+
+        /// Sorts given instances by their bit-width. Returns tuple `(wide_num, short_num)`.
+        fn order_by_width<'a>(&'a self, other: &'a MPuint) -> (&'a MPuint, &'a MPuint) {
+            let (wide, short) = if self.width >= other.width {
+                (self, other)
+            } else {
+                (other, self)
+            };
+            (wide, short)
+        }
     }
 
-    /// ! untested, NOT EVEN BY HAND
     /// `/` Operator for `DigitT` divisor
     impl Div<DigitT> for &MPuint {
         type Output = MPuint;
@@ -121,7 +130,7 @@ pub mod mp_uint {
         }
     }
 
-    /// ! untested, NOT EVEN BY HAND
+    /// ! untested
     /// `%` Operator for `DigitT` divisor
     impl Rem<DigitT> for &MPuint {
         type Output = DigitT;
@@ -169,24 +178,19 @@ pub mod mp_uint {
     /// Otherwise it would suffice to auto-derive
     impl PartialEq for MPuint {
         fn eq(&self, other: &Self) -> bool {
-            // Figure out the wider instance
-            let (big_num, small_num) = if self.width >= other.width {
-                (self, other)
-            } else {
-                (other, self)
-            };
+            let (wide_num, short_num) = self.order_by_width(other);
 
             // Following code *should* automagically cover case of same data lengths...
-            let bins_delta = big_num.len() - small_num.len();
+            let bins_delta = wide_num.len() - short_num.len();
 
             // Check whether the non-overlapping bins are populated with vals != 0
             // On bins_delta → takes no elements → false
-            let excess_is_zero = big_num.iter().rev().take(bins_delta).all(|d| *d == 0);
+            let excess_is_zero = wide_num.iter().rev().take(bins_delta).all(|d| *d == 0);
 
             {
                 excess_is_zero
                     // compare overlapping part, if non-overlapping part is zero
-                    && big_num.data[0..(big_num.len() - bins_delta)] == small_num.data
+                    && wide_num.data[0..(wide_num.len() - bins_delta)] == short_num.data
             }
         }
     }
@@ -240,6 +244,7 @@ pub mod mp_uint {
         }
     }
 
+    // TODO change this to an actual decimal string
     impl Display for MPuint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.to_binary_string())
