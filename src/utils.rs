@@ -42,16 +42,16 @@ pub fn div_with_rem<T: Div<Output = T> + Rem<Output = T> + Copy>(a: T, b: T) -> 
 /// Calculates the least amount of decimal digits required to represent a
 /// `bit_width` binary number in base 10.
 ///
-pub fn bit_to_dec_width(bit_width: u64) -> u64 {
-    (bit_width as f64 * LOG10_2).ceil() as u64
+pub fn bit_to_dec_width(bit_width: usize) -> usize {
+    (bit_width as f64 * LOG10_2).ceil() as usize
 }
 
 /// ! untested
 /// Calculates the least amount of bits required to represent a `dec_width`
 /// decimal number as binary integer.
 ///
-pub fn dec_to_bit_width(dec_width: u64) -> u64 {
-    (dec_width as f64 * LOG2_10).ceil() as u64
+pub fn dec_to_bit_width(dec_width: usize) -> usize {
+    (dec_width as f64 * LOG2_10).ceil() as usize
 }
 
 ///

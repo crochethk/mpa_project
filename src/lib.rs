@@ -2,8 +2,9 @@ pub mod bit_utils;
 pub mod utils;
 
 pub mod mp_uint {
-    use crate::utils::{add_with_carry, div_with_rem, parse_to_digits};
+    use crate::utils::{add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits};
     use std::{
+        error::Error,
         fmt::Display,
         ops::{Add, Div, Index, IndexMut, Rem, ShlAssign},
         slice::Iter,
@@ -106,7 +107,7 @@ pub mod mp_uint {
         }
 
         /// Gets max number of digits (in regards to the internal radix).
-        fn len(&self) -> usize {
+        pub fn len(&self) -> usize {
             self.data.len()
         }
 
@@ -118,6 +119,15 @@ pub mod mp_uint {
                 (other, self)
             };
             (wide, short)
+        }
+    }
+
+    /// !untested
+    impl Add<DigitT> for MPuint {
+        type Output = Self;
+
+        fn add(self, rhs: DigitT) -> Self::Output {
+            &self + &Self::from_digit(rhs as DigitT, self.width)
         }
     }
 
@@ -149,6 +159,7 @@ pub mod mp_uint {
         }
     }
 
+    /// ! untested
     /// `/` Operator for `DigitT` divisor
     impl Div<DigitT> for &MPuint {
         type Output = MPuint;
@@ -236,19 +247,35 @@ pub mod mp_uint {
             }
         }
 
-        #[allow(warnings)]
-        pub fn from_str(num_str: &str, width: usize) -> Self {
+        pub fn from_digit(digit: DigitT, width: usize) -> Self {
+            let mut num = Self::new(width);
+            num[0] = digit;
+            num
+        }
+
+        /// !untested
+        /// Creates new number with _at least_ `width` bits (see `new()`) using the given
+        /// `num_str`. Non-Decimal characters in `num_str` are ignored silently.
+        /// Returns `Err(MPParseErr)` if width was too short.
+        pub fn from_str(num_str: &str, width: usize) -> Result<Self, MPParseErr> {
             let digits: Vec<u8> = parse_to_digits(num_str);
+            {
+                let req_width = dec_to_bit_width(digits.len());
+                if req_width > width {
+                    return Err("speficfied bit width is too short for given number".into());
+                }
+            };
+
             /*
             TODO add code, that computes the data vec elements based on the digits-vec:
 
             Scenarion: num_str = "1234" ↔ 1*10^3 + 2*10^2 + 3*10^1 + 4*10^0
-            → digits = [1, 2, 3, 4]
+            → digits = [1, 2, 3, 4]       ↑        ↑        ↑        ↑
                         ↑  ↑  ↑  ↑
                     i=  0  1  2  3
             → len(digits) = 4
-            →  Calculate using Horner Schema:
-                result : MPuint = 0;
+            →  Calculate using Horner Schema: ((((0)*10 + 1)*10+2)*10+3)*10+4
+                result : MPuint = 0;                      ↑     ↑     ↑     ↑
 
                 for each d in digits:
                     /* Do: result = result * 10 + d; */
@@ -256,9 +283,23 @@ pub mod mp_uint {
                     result = result + d;
 
             → // TODO: implement Operators "+" and "<<" for MPuint
-
              */
-            todo!()
+
+            let mut result = Self::new(width);
+
+            for d in digits {
+                let mut r1 = result.clone();
+                let mut r2 = result.clone();
+
+                // Multiply by 10:
+                // (2*2*2*x + 2*x == 10*x)
+                r1 <<= 3;
+                r2 <<= 1;
+                result = &r1 + &r2;
+
+                result = result + (d as DigitT);
+            }
+            Ok(result)
         }
 
         /// Binary string, starting with MSB, ending with LSB on the right
@@ -291,6 +332,22 @@ pub mod mp_uint {
                 }
             }
         };
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct MPParseErr {
+        msg: &'static str,
+    }
+    impl Error for MPParseErr {}
+    impl Display for MPParseErr {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "error parsing to mp type: {}", self.msg)
+        }
+    }
+    impl From<&'static str> for MPParseErr {
+        fn from(value: &'static str) -> Self {
+            Self { msg: value }
+        }
     }
 
     impl_common_val!(one as 1);

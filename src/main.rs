@@ -12,4 +12,11 @@ fn main() {
     let mod_ten_by_three = &ten % 3;
     println!("→→→→ ten / 3 = {:?}", div_ten_by_three); // >>> [3,0]
     println!("→→→→ ten % 3 = {:?}", mod_ten_by_three); // >>> 1
+
+    // from_str
+    let num_str = "1234";
+    let width = 123;
+    let num = MPuint::from_str(num_str, width).unwrap();
+    println!("{:?}", num); // >>> MPuint { width: 128, data: [1234, 0] }
+    println!("{}", num); // >>> 0000 ... 0000 0100 1101 0010
 }
