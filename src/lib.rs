@@ -1,7 +1,7 @@
 pub mod bit_utils;
 pub mod utils;
 
-pub mod mp_uint {
+pub mod mp_int {
     use crate::utils::{add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits};
     use std::{
         error::Error,
@@ -19,20 +19,20 @@ pub mod mp_uint {
     // for those calculations while only ≤128bit are available "natively".
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MPuint {
+    pub struct MPint {
         width: usize,
         data: Vec<DigitT>,
     }
 
     /// Indexing type
     type Idx = usize;
-    impl IndexMut<Idx> for MPuint {
+    impl IndexMut<Idx> for MPint {
         /// Mutable access to digits (with base 2^DIGIT_BITS).
         fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
             &mut self.data[index]
         }
     }
-    impl Index<Idx> for MPuint {
+    impl Index<Idx> for MPint {
         type Output = DigitT;
 
         /// Immutable access to digits (with base 2^DIGIT_BITS).
@@ -42,7 +42,7 @@ pub mod mp_uint {
     }
 
     /// Iterator for the digits (enables `for`-loop)
-    impl<'a> IntoIterator for &'a MPuint {
+    impl<'a> IntoIterator for &'a MPint {
         type Item = &'a DigitT;
         type IntoIter = Iter<'a, DigitT>;
 
@@ -52,7 +52,7 @@ pub mod mp_uint {
         }
     }
 
-    impl MPuint {
+    impl MPint {
         /// Alias for `into_iter()`
         pub fn iter(&self) -> Iter<DigitT> {
             self.into_iter()
@@ -110,11 +110,10 @@ pub mod mp_uint {
         pub fn len(&self) -> usize {
             self.data.len()
         }
-
     }
 
     /// !untested
-    impl Add<DigitT> for MPuint {
+    impl Add<DigitT> for MPint {
         type Output = Self;
 
         fn add(self, rhs: DigitT) -> Self::Output {
@@ -123,8 +122,8 @@ pub mod mp_uint {
     }
 
     /// !untested
-    impl Add for &MPuint {
-        type Output = MPuint;
+    impl Add for &MPint {
+        type Output = MPint;
 
         fn add(self, rhs: Self) -> Self::Output {
             assert_eq!(self.width, rhs.width, "operands must have equal widths");
@@ -147,8 +146,8 @@ pub mod mp_uint {
 
     /// ! untested
     /// `/` Operator for `DigitT` divisor
-    impl Div<DigitT> for &MPuint {
-        type Output = MPuint;
+    impl Div<DigitT> for &MPint {
+        type Output = MPint;
 
         fn div(self, divisor: DigitT) -> Self::Output {
             self.div_with_rem(divisor).0
@@ -157,7 +156,7 @@ pub mod mp_uint {
 
     /// ! untested
     /// `%` Operator for `DigitT` divisor
-    impl Rem<DigitT> for &MPuint {
+    impl Rem<DigitT> for &MPint {
         type Output = DigitT;
 
         fn rem(self, divisor: DigitT) -> Self::Output {
@@ -166,7 +165,7 @@ pub mod mp_uint {
     }
 
     /// inplace `<<=` operator
-    impl ShlAssign<u32> for MPuint {
+    impl ShlAssign<u32> for MPint {
         fn shl_assign(&mut self, mut shift_distance: u32) {
             assert!((shift_distance as usize) < self.width);
             const MAX_STEP: u32 = DIGIT_BITS - 1;
@@ -197,7 +196,7 @@ pub mod mp_uint {
         }
     }
 
-    impl MPuint {
+    impl MPint {
         /// Creates a new instance with the desired bit-width and initialized to `0`.
         ///
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
@@ -238,14 +237,14 @@ pub mod mp_uint {
                     i=  0  1  2  3
             → len(digits) = 4
             →  Calculate using Horner Schema: ((((0)*10 + 1)*10+2)*10+3)*10+4
-                result : MPuint = 0;                      ↑     ↑     ↑     ↑
+                result : MPint = 0;                       ↑     ↑     ↑     ↑
 
                 for each d in digits:
                     /* Do: result = result * 10 + d; */
                     result = (result << 3) + (result << 1); // == 2*2*2*x + 2*x == 10*x
                     result = result + d;
 
-            → // TODO: implement Operators "+" and "<<" for MPuint
+            → // TODO: implement Operators "+" and "<<" for MPint
              */
 
             let mut result = Self::new(width);
@@ -277,7 +276,7 @@ pub mod mp_uint {
     }
 
     // TODO change this to an actual decimal string
-    impl Display for MPuint {
+    impl Display for MPint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.to_binary_string())
         }
@@ -286,7 +285,7 @@ pub mod mp_uint {
     /// Implementations for often used integer values
     macro_rules! impl_common_val {
         ($value_name:ident as $val:literal) => {
-            impl MPuint {
+            impl MPint {
                 #[doc = concat!("Creates new instance representing `", $val, "`.")]
                 pub fn $value_name(width: usize) -> Self {
                     let mut result = Self::new(width);
