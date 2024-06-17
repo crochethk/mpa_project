@@ -16,9 +16,9 @@ pub mod mp_uint {
     type DigitT = u64;
     const DIGIT_BITS: u32 = 64;
     // Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
-    // for those calculations while only ≤128bit are available "nativelly".
+    // for those calculations while only ≤128bit are available "natively".
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MPuint {
         width: usize,
         data: Vec<DigitT>,
@@ -111,15 +111,6 @@ pub mod mp_uint {
             self.data.len()
         }
 
-        /// Sorts given instances by their bit-width. Returns tuple `(wide_num, short_num)`.
-        fn order_by_width<'a>(&'a self, other: &'a MPuint) -> (&'a MPuint, &'a MPuint) {
-            let (wide, short) = if self.width >= other.width {
-                (self, other)
-            } else {
-                (other, self)
-            };
-            (wide, short)
-        }
     }
 
     /// !untested
@@ -136,23 +127,18 @@ pub mod mp_uint {
         type Output = MPuint;
 
         fn add(self, rhs: Self) -> Self::Output {
-            let (wide, short) = self.order_by_width(rhs);
-            let mut sum = wide.clone();
+            assert_eq!(self.width, rhs.width, "operands must have equal widths");
+
+            let mut sum = self.clone();
             let mut carry: bool = false;
 
             // Carry-Ripple add overlapping bins
-            for i in 0..short.len() {
+            for i in 0..rhs.len() {
                 let digit: DigitT;
-                (digit, carry) = add_with_carry(wide[i], short[i], carry);
+                (digit, carry) = add_with_carry(self[i], rhs[i], carry);
                 sum[i] = digit;
             }
 
-            // Carry-Ripple add remaining carry to non-overlapping bins
-            for i in short.len()..wide.len() {
-                let digit: DigitT;
-                (digit, carry) = add_with_carry(wide[i], 0, carry);
-                sum[i] = digit;
-            }
             assert!(!carry, "Overlfow occured");
 
             sum
@@ -208,29 +194,6 @@ pub mod mp_uint {
             // the number as a whole overflowed.
             // Actually we could do this check in advance by checking where the last `1`
             // is in the last bin and compare to `rhs` accordingly.
-        }
-    }
-
-    /// !untested
-    /// We want to allow comparing the actual values of different widths
-    /// (i.e. not directly returning false, when the widths differ)
-    /// Otherwise it would suffice to auto-derive
-    impl PartialEq for MPuint {
-        fn eq(&self, other: &Self) -> bool {
-            let (wide_num, short_num) = self.order_by_width(other);
-
-            // Following code *should* automagically cover case of same data lengths...
-            let bins_delta = wide_num.len() - short_num.len();
-
-            // Check whether the non-overlapping bins are populated with vals != 0
-            // On bins_delta → takes no elements → false
-            let excess_is_zero = wide_num.iter().rev().take(bins_delta).all(|d| *d == 0);
-
-            {
-                excess_is_zero
-                    // compare overlapping part, if non-overlapping part is zero
-                    && wide_num.data[0..(wide_num.len() - bins_delta)] == short_num.data
-            }
         }
     }
 
