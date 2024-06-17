@@ -6,15 +6,20 @@ pub mod mp_int {
     use std::{
         error::Error,
         fmt::Display,
+        mem::size_of,
         ops::{Add, Div, Index, IndexMut, Rem, ShlAssign},
         slice::Iter,
     };
 
-    /// Type of elements representing individual digits and number of Bits per digit
-    /// of the internal number system. \
-    /// __DO NOT CHANGE__
+    /// Type of elements representing individual digits. Directly related to the
+    /// `const DIGIT_BITS`.
+    /// __DO NOT CHANGE WITHOUT CAUTION__
     type DigitT = u64;
-    const DIGIT_BITS: u32 = 64;
+
+    /// Number of bits used per digit in the internal number system.
+    /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
+    /// for those calculations, while only ≤128bit are available "natively".
+    const DIGIT_BITS: u32 = size_of::<DigitT>() as u32;
     // Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
     // for those calculations while only ≤128bit are available "natively".
 
