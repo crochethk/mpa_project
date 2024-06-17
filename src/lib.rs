@@ -29,38 +29,17 @@ pub mod mp_int {
         data: Vec<DigitT>,
     }
 
-    /// Indexing type
-    type Idx = usize;
-    impl IndexMut<Idx> for MPint {
-        /// Mutable access to digits (with base 2^DIGIT_BITS).
-        fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
-            &mut self.data[index]
-        }
-    }
-    impl Index<Idx> for MPint {
-        type Output = DigitT;
-
-        /// Immutable access to digits (with base 2^DIGIT_BITS).
-        fn index(&self, index: Idx) -> &Self::Output {
-            &self.data[index]
-        }
-    }
-
-    /// Iterator for the digits (enables `for`-loop)
-    impl<'a> IntoIterator for &'a MPint {
-        type Item = &'a DigitT;
-        type IntoIter = Iter<'a, DigitT>;
-
-        /// Iterator yields individual digits starting with __least significant__
-        fn into_iter(self) -> Self::IntoIter {
-            self.data.iter()
-        }
-    }
-
     impl MPint {
-        /// Alias for `into_iter()`
-        pub fn iter(&self) -> Iter<DigitT> {
-            self.into_iter()
+        /// Creates a new instance with the desired bit-width and initialized to `0`.
+        ///
+        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
+        pub fn new(width: usize) -> Self {
+            let bin_count = width.div_ceil(DIGIT_BITS as usize);
+            let actual_width = bin_count * DIGIT_BITS as usize;
+            Self {
+                width: actual_width,
+                data: vec![0; bin_count],
+            }
         }
 
         /// !untested
@@ -114,6 +93,76 @@ pub mod mp_int {
         /// Gets max number of digits (in regards to the internal radix).
         pub fn len(&self) -> usize {
             self.data.len()
+        }
+
+        pub fn from_digit(digit: DigitT, width: usize) -> Self {
+            let mut num = Self::new(width);
+            num[0] = digit;
+            num
+        }
+
+        /// !untested
+        /// Creates new number with _at least_ `width` bits (see `new()`) using the given
+        /// `num_str`. Non-Decimal characters in `num_str` are ignored silently.
+        /// Returns `Err(MPParseErr)` if width was too short.
+        pub fn from_str(num_str: &str, width: usize) -> Result<Self, MPParseErr> {
+            let digits: Vec<u8> = parse_to_digits(num_str);
+            {
+                let req_width = dec_to_bit_width(digits.len());
+                if req_width > width {
+                    return Err("speficfied bit width is too short for given number".into());
+                }
+            };
+
+            /*
+            TODO add code, that computes the data vec elements based on the digits-vec:
+
+            Scenarion: num_str = "1234" ↔ 1*10^3 + 2*10^2 + 3*10^1 + 4*10^0
+            → digits = [1, 2, 3, 4]       ↑        ↑        ↑        ↑
+                        ↑  ↑  ↑  ↑
+                    i=  0  1  2  3
+            → len(digits) = 4
+            →  Calculate using Horner Schema: ((((0)*10 + 1)*10+2)*10+3)*10+4
+                result : MPint = 0;                       ↑     ↑     ↑     ↑
+
+                for each d in digits:
+                    /* Do: result = result * 10 + d; */
+                    result = (result << 3) + (result << 1); // == 2*2*2*x + 2*x == 10*x
+                    result = result + d;
+
+            → // TODO: implement Operators "+" and "<<" for MPint
+             */
+
+            let mut result = Self::new(width);
+
+            for d in digits {
+                let mut r1 = result.clone();
+                let mut r2 = result.clone();
+
+                // Multiply by 10:
+                // (2*2*2*x + 2*x == 10*x)
+                r1 <<= 3;
+                r2 <<= 1;
+                result = &r1 + &r2;
+
+                result = result + (d as DigitT);
+            }
+            Ok(result)
+        }
+
+        /// Binary string, starting with MSB, ending with LSB on the right
+        pub fn to_binary_string(&self) -> String {
+            let mut result = String::new();
+
+            for d in self.iter().rev() {
+                result += &crate::bit_utils::int_to_binary_str(*d);
+            }
+            result
+        }
+
+        /// Alias for `into_iter()`
+        pub fn iter(&self) -> Iter<DigitT> {
+            self.into_iter()
         }
     }
 
@@ -201,82 +250,31 @@ pub mod mp_int {
         }
     }
 
-    impl MPint {
-        /// Creates a new instance with the desired bit-width and initialized to `0`.
-        ///
-        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
-        pub fn new(width: usize) -> Self {
-            let bin_count = width.div_ceil(DIGIT_BITS as usize);
-            let actual_width = bin_count * DIGIT_BITS as usize;
-            Self {
-                width: actual_width,
-                data: vec![0; bin_count],
-            }
+    /// Indexing type
+    type Idx = usize;
+    impl IndexMut<Idx> for MPint {
+        /// Mutable access to digits (with base 2^DIGIT_BITS).
+        fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+            &mut self.data[index]
         }
+    }
+    impl Index<Idx> for MPint {
+        type Output = DigitT;
 
-        pub fn from_digit(digit: DigitT, width: usize) -> Self {
-            let mut num = Self::new(width);
-            num[0] = digit;
-            num
+        /// Immutable access to digits (with base 2^DIGIT_BITS).
+        fn index(&self, index: Idx) -> &Self::Output {
+            &self.data[index]
         }
+    }
 
-        /// !untested
-        /// Creates new number with _at least_ `width` bits (see `new()`) using the given
-        /// `num_str`. Non-Decimal characters in `num_str` are ignored silently.
-        /// Returns `Err(MPParseErr)` if width was too short.
-        pub fn from_str(num_str: &str, width: usize) -> Result<Self, MPParseErr> {
-            let digits: Vec<u8> = parse_to_digits(num_str);
-            {
-                let req_width = dec_to_bit_width(digits.len());
-                if req_width > width {
-                    return Err("speficfied bit width is too short for given number".into());
-                }
-            };
+    /// Iterator for the digits (enables `for`-loop)
+    impl<'a> IntoIterator for &'a MPint {
+        type Item = &'a DigitT;
+        type IntoIter = Iter<'a, DigitT>;
 
-            /*
-            TODO add code, that computes the data vec elements based on the digits-vec:
-
-            Scenarion: num_str = "1234" ↔ 1*10^3 + 2*10^2 + 3*10^1 + 4*10^0
-            → digits = [1, 2, 3, 4]       ↑        ↑        ↑        ↑
-                        ↑  ↑  ↑  ↑
-                    i=  0  1  2  3
-            → len(digits) = 4
-            →  Calculate using Horner Schema: ((((0)*10 + 1)*10+2)*10+3)*10+4
-                result : MPint = 0;                       ↑     ↑     ↑     ↑
-
-                for each d in digits:
-                    /* Do: result = result * 10 + d; */
-                    result = (result << 3) + (result << 1); // == 2*2*2*x + 2*x == 10*x
-                    result = result + d;
-
-            → // TODO: implement Operators "+" and "<<" for MPint
-             */
-
-            let mut result = Self::new(width);
-
-            for d in digits {
-                let mut r1 = result.clone();
-                let mut r2 = result.clone();
-
-                // Multiply by 10:
-                // (2*2*2*x + 2*x == 10*x)
-                r1 <<= 3;
-                r2 <<= 1;
-                result = &r1 + &r2;
-
-                result = result + (d as DigitT);
-            }
-            Ok(result)
-        }
-
-        /// Binary string, starting with MSB, ending with LSB on the right
-        pub fn to_binary_string(&self) -> String {
-            let mut result = String::new();
-
-            for d in self.iter().rev() {
-                result += &crate::bit_utils::int_to_binary_str(*d);
-            }
-            result
+        /// Iterator yields individual digits starting with __least significant__
+        fn into_iter(self) -> Self::IntoIter {
+            self.data.iter()
         }
     }
 
