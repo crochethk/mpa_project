@@ -120,27 +120,12 @@ pub mod mp_int {
                 }
             };
 
-            /*
-            TODO add code, that computes the data vec elements based on the digits-vec:
-
-            Scenarion: num_str = "1234" ↔ 1*10^3 + 2*10^2 + 3*10^1 + 4*10^0
-            → digits = [1, 2, 3, 4]       ↑        ↑        ↑        ↑
-                        ↑  ↑  ↑  ↑
-                    i=  0  1  2  3
-            → len(digits) = 4
-            →  Calculate using Horner Schema: ((((0)*10 + 1)*10+2)*10+3)*10+4
-                result : MPint = 0;                       ↑     ↑     ↑     ↑
-
-                for each d in digits:
-                    /* Do: result = result * 10 + d; */
-                    result = (result << 3) + (result << 1); // == 2*2*2*x + 2*x == 10*x
-                    result = result + d;
-
-            → // TODO: implement Operators "+" and "<<" for MPint
-             */
-
             let mut result = Self::new(width);
 
+            // Build digits by applying Horner-Schema
+            // e.g. digits = [1, 2, 3, 4]
+            //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
+            //                               ↑     ↑     ↑     ↑
             for d in digits {
                 let mut r1 = result.clone();
                 let mut r2 = result.clone();
