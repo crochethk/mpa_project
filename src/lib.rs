@@ -20,13 +20,18 @@ pub mod mp_int {
     /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
     /// for those calculations, while only ≤128bit are available "natively".
     const DIGIT_BITS: u32 = size_of::<DigitT>() as u32;
-    // Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
-    // for those calculations while only ≤128bit are available "natively".
+
+    #[derive(Debug, Clone, PartialEq)]
+    enum Sign {
+        Pos,
+        Neg,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct MPint {
         width: usize,
         data: Vec<DigitT>,
+        sign: Sign,
     }
 
     impl MPint {
@@ -39,6 +44,7 @@ pub mod mp_int {
             Self {
                 width: actual_width,
                 data: vec![0; bin_count],
+                sign: Sign::Pos,
             }
         }
 
@@ -285,19 +291,6 @@ pub mod mp_int {
         }
     }
 
-    /// Implementations for often used integer values
-    macro_rules! impl_common_val {
-        ($value_name:ident as $val:literal) => {
-            impl MPint {
-                #[doc = concat!("Creates new instance representing `", $val, "`.")]
-                pub fn $value_name(width: usize) -> Self {
-                    let mut result = Self::new(width);
-                    result.data[0] = $val;
-                    result
-                }
-            }
-        };
-    }
 
     #[derive(Debug, Clone)]
     pub struct MPParseErr {
@@ -313,6 +306,24 @@ pub mod mp_int {
         fn from(value: &'static str) -> Self {
             Self { msg: value }
         }
+    }
+
+    /// Implementations for often used integer values
+    macro_rules! impl_common_val {
+        ($value_name:ident as $val:literal) => {
+            impl MPint {
+                #[doc = concat!("Creates new instance representing `", $val, "`.")]
+                pub fn $value_name(width: usize) -> Self {
+                    let mut result = Self::new(width);
+
+                    let sign = if $val < 0 { Sign::Neg } else { Sign::Pos };
+                    result.sign = sign;
+
+                    result.data[0] = $val;
+                    result
+                }
+            }
+        };
     }
 
     impl_common_val!(one as 1);
