@@ -67,29 +67,29 @@ pub mod mp_int {
         /// divisor.
         ///
         /// ### Footnote
-        /// Since how division works, the remainder will always be `0 ≤ rem < divisor`.
-        /// Therefore remainder and divisor can be represented by the same type.
+        /// Since how division works, the remainder will always be `0 ≤ |rem| < divisor`.
         ///
         /// ### Algorithm Description
         /// - Division Term: `A = q*b + r`
-        ///     - A = self
-        ///     - b = divisor
-        ///     - r = remainder
-        ///     - q = quotient
-        /// - to divide `self` by `divisor`:
-        ///     - init `quotient` with appropriate width
-        ///     - divide each d in self.data, in reverse order (starting with "MSB")
+        ///     - `A` = self
+        ///     - `b` = divisor
+        ///     - `r` = remainder
+        ///     - `q` = quotient
+        /// - To divide `self` by `divisor`:
+        ///     - init `quotient` with same width
+        ///     - divide each `d` in `self.data`, in reverse order (i.e. starting with "MSB")
         ///         - calculate:
         ///         ```
         ///         base = 2^digit_bits
         ///         dividend = last_r*base + d // "puts last remainder infront of next digit"
         ///         q, last_r = div_with_rem(divident, divisor)
         ///         ```
-        ///         - write q to quotient.data.reverse()[i]
-        /// - last `last_r` is result remainder
+        ///         - write `q` to `quotient.data.reverse()[i]`
+        /// - Last `last_r` is result remainder
+        /// - When finished, adjust sign of quotient and remainder
         ///
-        pub fn div_with_rem(&self, divisor: DigitT) -> (Self, DigitT) {
-            let mut quotient = Self::new(self.width);
+        pub fn div_with_rem(&self, divisor: DigitT) -> (Self, i128) {
+            let mut quotient = Self::new(self);
 
             let divisor = divisor as u128;
             let mut last_r = 0u128;
@@ -99,7 +99,8 @@ pub mod mp_int {
                 // "Prefix" d with last_r (multiplies last_r by `2^digit_bits`)
                 let dividend = (last_r << DIGIT_BITS) + d;
 
-                // Important: "0 ≤ r_i ≤ DigitT::MAX" and "0 ≤ q ≤ DigitT::MAX" ← unsure 'bout the latter
+                // TODO test this assumption
+                // Important: "0 ≤ last_r ≤ DigitT::MAX" and "0 ≤ q ≤ DigitT::MAX" ← unsure 'bout the latter
                 let q;
                 (q, last_r) = div_with_rem(dividend, divisor);
 
@@ -107,7 +108,14 @@ pub mod mp_int {
                 quotient[(self.len() - 1) - i] = q as u64;
             }
 
-            (quotient, last_r as u64)
+            // Account for `self`s sign
+            quotient.sign = self.sign;
+            let last_r = match self.sign {
+                Sign::Neg => -(last_r as i128),
+                _ => last_r as i128,
+            };
+
+            (quotient, last_r)
         }
 
         /// Gets max number of digits (in regards to the internal radix).
@@ -216,7 +224,7 @@ pub mod mp_int {
     /// ! untested
     /// `%` Operator for `DigitT` divisor
     impl Rem<DigitT> for &MPint {
-        type Output = DigitT;
+        type Output = i128;
 
         fn rem(self, divisor: DigitT) -> Self::Output {
             self.div_with_rem(divisor).1
@@ -289,7 +297,6 @@ pub mod mp_int {
             write!(f, "{}", self.to_binary_string())
         }
     }
-
 
     #[derive(Debug, Clone)]
     pub struct MPParseErr {
