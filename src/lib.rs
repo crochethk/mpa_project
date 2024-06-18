@@ -21,7 +21,7 @@ pub mod mp_int {
     /// for those calculations, while only ≤128bit are available "natively".
     const DIGIT_BITS: u32 = size_of::<DigitT>() as u32;
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     enum Sign {
         Pos,
         Neg,
@@ -34,11 +34,23 @@ pub mod mp_int {
         sign: Sign,
     }
 
-    impl MPint {
+    pub trait CreateNewFrom<T> {
+        /// Provides different constructor overloads
+        fn new(src: T) -> Self;
+    }
+
+    impl CreateNewFrom<&Self> for MPint {
+        /// Creates new instance of similar width. Shorthand for `new(src.width)`.
+        fn new(src: &Self) -> Self {
+            Self::new(src.width)
+        }
+    }
+
+    impl CreateNewFrom<usize> for MPint {
         /// Creates a new instance with the desired bit-width and initialized to `0`.
         ///
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
-        pub fn new(width: usize) -> Self {
+        fn new(width: usize) -> Self {
             let bin_count = width.div_ceil(DIGIT_BITS as usize);
             let actual_width = bin_count * DIGIT_BITS as usize;
             Self {
@@ -47,7 +59,9 @@ pub mod mp_int {
                 sign: Sign::Pos,
             }
         }
+    }
 
+    impl MPint {
         /// !untested
         /// Calculates quotient and remainder using the given _native_ integer
         /// divisor.
