@@ -2,9 +2,10 @@ pub mod bit_utils;
 pub mod utils;
 
 pub mod mp_int {
-    use crate::utils::{add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits};
+    use crate::utils::{
+        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError,
+    };
     use std::{
-        error::Error,
         fmt::Display,
         mem::size_of,
         ops::{Add, Div, Index, IndexMut, Rem, ShlAssign},
@@ -131,10 +132,19 @@ pub mod mp_int {
 
         /// !untested
         /// Creates new number with _at least_ `width` bits (see `new()`) using the given
-        /// `num_str`. Non-Decimal characters in `num_str` are ignored silently.
-        /// Returns `Err(MPParseErr)` if width was too short.
-        pub fn from_str(num_str: &str, width: usize) -> Result<Self, MPParseErr> {
-            let digits: Vec<u8> = parse_to_digits(num_str);
+        /// `num_str`. First character may be a sign (`+`/`-`).
+        ///
+        /// ### Returns
+        ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
+        ///  - `Err(ParseError)` if:
+        ///     - `width` was too short
+        ///     - `num_str` was empty or contained invalid chars
+        pub fn from_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+            let digits: Vec<u8> = match parse_to_digits(num_str) {
+                Ok(ds) => ds,
+                Err(e) => return Err(e),
+            };
+
             {
                 let req_width = dec_to_bit_width(digits.len());
                 if req_width > width {
@@ -295,22 +305,6 @@ pub mod mp_int {
     impl Display for MPint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", self.to_binary_string())
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    pub struct MPParseErr {
-        msg: &'static str,
-    }
-    impl Error for MPParseErr {}
-    impl Display for MPParseErr {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "error parsing to mp type: {}", self.msg)
-        }
-    }
-    impl From<&'static str> for MPParseErr {
-        fn from(value: &'static str) -> Self {
-            Self { msg: value }
         }
     }
 

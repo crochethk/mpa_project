@@ -1,4 +1,6 @@
+use std::error::Error;
 use std::f64::consts::{LOG10_2, LOG2_10};
+use std::fmt::Display;
 use std::ops::{Div, Rem};
 
 /// Basically a full adder for `u64`
@@ -56,17 +58,22 @@ pub fn dec_to_bit_width(dec_width: usize) -> usize {
 
 ///
 /// Parses given decimal digits string into a vector of digits.
-/// Invalid chars are *ignored silently*.
+/// ## Returns
+/// - On Success: `Ok(Vec<u8>)` containing the parsed digits
+/// - `Err` when a non-digit byte was encountered
 ///
-pub fn parse_to_digits(num: &str) -> Vec<u8> {
+pub fn parse_to_digits(num: &str) -> Result<Vec<u8>, ParseError> {
+    if num.is_empty() {
+        return Err("`num` must be non-empty".into());
+    }
     let mut digits: Vec<u8> = Vec::new();
     for b in num.bytes() {
         match digit_char_to_value(b) {
             Some(value) => digits.push(value),
-            None => continue,
+            None => return Err("invalid non-decimal digit encountered".into()),
         };
     }
-    digits
+    Ok(digits)
 }
 
 ///
@@ -85,6 +92,22 @@ fn digit_char_to_value(ch: u8) -> Option<u8> {
         b'8' => Some(8_u8),
         b'9' => Some(9_u8),
         _ => None,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError {
+    msg: &'static str,
+}
+impl Error for ParseError {}
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error while parsing: {}", self.msg)
+    }
+}
+impl From<&'static str> for ParseError {
+    fn from(value: &'static str) -> Self {
+        Self { msg: value }
     }
 }
 
@@ -177,24 +200,21 @@ mod tests {
         /// Test input containing invalid chars among valid ones
         fn invalid_chars() {
             let num_str = " 123- 4\n";
-            let expected = vec![1, 2, 3, 4];
-            assert_eq!(parse_to_digits(num_str), expected);
+            assert!(parse_to_digits(num_str).is_err());
         }
 
         #[test]
         /// Test empty input string
         fn empty_str() {
             let num_str = "";
-            let expected = vec![];
-            assert_eq!(parse_to_digits(num_str), expected);
+            assert!(parse_to_digits(num_str).is_err());
         }
 
         #[test]
         /// Test input where all chars are invalid
         fn all_chars_invalid() {
             let num_str = "foo";
-            let expected = vec![];
-            assert_eq!(parse_to_digits(num_str), expected);
+            assert!(parse_to_digits(num_str).is_err());
         }
 
         #[test]
@@ -231,7 +251,7 @@ mod tests {
             );
 
             #[rustfmt::skip]
-            let expected_200 = vec![
+            let expected_200 = Ok(vec![
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 
                 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 
@@ -240,10 +260,10 @@ mod tests {
                 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 
                 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0
-            ];
+            ]);
 
             #[rustfmt::skip]
-            let expected_1001 = vec![
+            let expected_1001 = Ok(vec![
                 3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4, 6, 2, 6, 4, 3, 
                 3, 8, 3, 2, 7, 9, 5, 0, 2, 8, 8, 4, 1, 9, 7, 1, 6, 9, 3, 9, 9, 3, 7, 5, 1, 
                 0, 5, 8, 2, 0, 9, 7, 4, 9, 4, 4, 5, 9, 2, 3, 0, 7, 8, 1, 6, 4, 0, 6, 2, 8, 
@@ -284,7 +304,7 @@ mod tests {
                 5, 6, 2, 8, 6, 3, 8, 8, 2, 3, 5, 3, 7, 8, 7, 5, 9, 3, 7, 5, 1, 9, 5, 7, 7, 
                 8, 1, 8, 5, 7, 7, 8, 0, 5, 3, 2, 1, 7, 1, 2, 2, 6, 8, 0, 6, 6, 1, 3, 0, 0, 
                 1, 9, 2, 7, 8, 7, 6, 6, 1, 1, 1, 9, 5, 9, 0, 9, 2, 1, 6, 4, 2, 0, 1, 9, 8, 9
-            ];
+            ]);
 
             assert_eq!(parse_to_digits(NUM_PI_INT_1001), expected_1001);
             assert_eq!(parse_to_digits(BIG_NUM_200_DIGITS), expected_200);
