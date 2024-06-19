@@ -28,6 +28,26 @@ pub mod mp_int {
         Neg,
     }
 
+    impl TryFrom<char> for Sign {
+        type Error = ParseError;
+
+        /// Converts `char` to the appropriate enum value.
+        /// Returns an error type, if the provided character is unknown.
+        fn try_from(value: char) -> Result<Self, Self::Error> {
+            match value {
+                '+' => Ok(Self::Pos),
+                '-' => Ok(Self::Neg),
+                _ => Err("invalid sign character".into()),
+            }
+        }
+    }
+
+    impl Default for Sign {
+        fn default() -> Self {
+            Self::Pos
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq)]
     pub struct MPint {
         width: usize,
@@ -132,23 +152,39 @@ pub mod mp_int {
 
         /// !untested
         /// Creates new number with _at least_ `width` bits (see `new()`) using the given
-        /// `num_str`. First character may be a sign (`+`/`-`).
+        /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
         /// ### Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
         ///  - `Err(ParseError)` if:
         ///     - `width` was too short
         ///     - `num_str` was empty or contained invalid chars
-        pub fn from_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+        pub fn from_str(mut num_str: &str, width: usize) -> Result<Self, ParseError> {
+            // Extract sign
+            let first_char = match num_str.chars().next() {
+                Some(ch) => ch,
+                None => return Err("provided decimal string (`num_str`) must be non-empty".into()),
+            };
+
+            let sign: Sign = match first_char.try_into() {
+                Ok(s) => {
+                    // remove sign before processing digits
+                    num_str = num_str.strip_prefix(first_char).unwrap();
+                    s
+                }
+                _ => Sign::default(),
+            };
+
             let digits: Vec<u8> = match parse_to_digits(num_str) {
                 Ok(ds) => ds,
                 Err(e) => return Err(e),
             };
 
+            // Validate width
             {
                 let req_width = dec_to_bit_width(digits.len());
                 if req_width > width {
-                    return Err("speficfied bit width is too short for given number".into());
+                    return Err("speficfied bit width is too short for the given number".into());
                 }
             };
 
@@ -170,6 +206,8 @@ pub mod mp_int {
 
                 result = result + (d as DigitT);
             }
+
+            result.sign = sign;
             Ok(result)
         }
 
