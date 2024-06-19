@@ -8,7 +8,7 @@ pub mod mp_int {
     use std::{
         fmt::Display,
         mem::size_of,
-        ops::{Add, Div, Index, IndexMut, Rem, ShlAssign},
+        ops::{Add, AddAssign, Div, Index, IndexMut, Not, Rem, ShlAssign},
         slice::Iter,
     };
 
@@ -218,7 +218,7 @@ pub mod mp_int {
                 r2 <<= 1;
                 result = &r1 + &r2;
 
-                result = result + (d as DigitT);
+                result += d as DigitT; // result = result + (d as DigitT);
             }
 
             result.sign = sign;
@@ -244,14 +244,21 @@ pub mod mp_int {
         pub fn iter(&self) -> Iter<DigitT> {
             self.into_iter()
         }
+
+        /// Calculates two's complement of the given number.
+        /// Note that, this operations does always return a non-negative number,
+        /// regardless of the input's sign.
+        fn twos_complement(&self) -> MPint {
+            let mut twos_comp = !(self);
+            twos_comp.sign = Sign::Pos;
+            twos_comp += 1;
+            twos_comp
+        }
     }
-
-    /// !untested
-    impl Add<DigitT> for MPint {
-        type Output = Self;
-
-        fn add(self, rhs: DigitT) -> Self::Output {
-            &self + &Self::from_digit(rhs as DigitT, self.width)
+    impl AddAssign<DigitT> for MPint {
+        // inplace `+=` operator
+        fn add_assign(&mut self, rhs: DigitT) {
+            *self = &*self + &Self::from_digit(rhs, self.width);
         }
     }
 
@@ -323,10 +330,23 @@ pub mod mp_int {
                 shift_distance -= sh_step;
             }
 
-            // here we could panic! if `overflow != 0`, which would mean that
-            // the number as a whole overflowed.
-            // Actually we could do this check in advance by checking where the last `1`
-            // is in the last bin and compare to `rhs` accordingly.
+            // // here we could panic! if `overflow != 0`, which would mean that
+            // // the number as a whole overflowed.
+            // // Actually we could do this check in advance by checking where the last `1`
+            // // is in the last bin and compare to `rhs` accordingly.
+        }
+    }
+
+    impl Not for &MPint {
+        type Output = MPint;
+
+        /// Performs bitwise "not" aka. `!`.
+        fn not(self) -> Self::Output {
+            let mut result = MPint::new(self);
+            for (i, d) in self.iter().enumerate() {
+                result[i] = !d;
+            }
+            result
         }
     }
 
