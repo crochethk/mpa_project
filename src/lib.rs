@@ -28,6 +28,11 @@ pub mod mp_int {
         Neg,
     }
 
+    impl Sign {
+        const PLUS: char = '+';
+        const MINUS: char = '-';
+    }
+
     impl TryFrom<char> for Sign {
         type Error = ParseError;
 
@@ -35,9 +40,18 @@ pub mod mp_int {
         /// Returns an error type, if the provided character is unknown.
         fn try_from(value: char) -> Result<Self, Self::Error> {
             match value {
-                '+' => Ok(Self::Pos),
-                '-' => Ok(Self::Neg),
+                Self::PLUS => Ok(Self::Pos),
+                Self::MINUS => Ok(Self::Neg),
                 _ => Err("invalid sign character".into()),
+            }
+        }
+    }
+
+    impl From<Sign> for char {
+        fn from(value: Sign) -> Self {
+            match value {
+                Sign::Pos => Sign::PLUS,
+                Sign::Neg => Sign::MINUS,
             }
         }
     }
@@ -211,12 +225,17 @@ pub mod mp_int {
             Ok(result)
         }
 
-        /// Binary string, starting with MSB, ending with LSB on the right
+        /// Binary string, starting with MSB, ending with LSB on the right.
+        /// Given a negative number, it will be prefixed with its sign.
         pub fn to_binary_string(&self) -> String {
             let mut result = String::new();
+            if self.sign == Sign::Neg {
+                result.push(self.sign.into());
+            }
 
             for d in self.iter().rev() {
                 result += &crate::bit_utils::int_to_binary_str(*d);
+                result += " ";
             }
             result
         }
