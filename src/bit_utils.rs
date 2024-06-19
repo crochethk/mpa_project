@@ -2,7 +2,7 @@ use num_traits::{int::PrimInt, One};
 use std::ops::ShrAssign;
 
 pub fn int_to_binary_str<T: PrimInt + One + ShrAssign + 'static>(mut data: T) -> String {
-    const BLOCK_WIDTH: usize = 4;
+    const BLOCK_WIDTH: usize = 8;
     const DELIM: &str = " ";
 
     let bits: usize = get_bit_width::<T>();
@@ -38,15 +38,15 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_int_to_binary_str() {
-        assert_eq!(int_to_binary_str(-2 as i32),  "1111 1111 1111 1111 1111 1111 1111 1110");
-        assert_eq!(int_to_binary_str(-1 as i32),  "1111 1111 1111 1111 1111 1111 1111 1111");
-        assert_eq!(int_to_binary_str(0 as i32),   "0000 0000 0000 0000 0000 0000 0000 0000");
-        assert_eq!(int_to_binary_str(1 as i32),   "0000 0000 0000 0000 0000 0000 0000 0001");
-        assert_eq!(int_to_binary_str(2 as i32),   "0000 0000 0000 0000 0000 0000 0000 0010");
-        assert_eq!(int_to_binary_str(3 as i32),   "0000 0000 0000 0000 0000 0000 0000 0011");
-        assert_eq!(int_to_binary_str(4 as i32),   "0000 0000 0000 0000 0000 0000 0000 0100");
-        assert_eq!(int_to_binary_str(127 as i32), "0000 0000 0000 0000 0000 0000 0111 1111");
-        assert_eq!(int_to_binary_str(u32::MAX),   "1111 1111 1111 1111 1111 1111 1111 1111");
-        assert_eq!(int_to_binary_str(2_147_483_648 as u32), "1000 0000 0000 0000 0000 0000 0000 0000");
+        assert_eq!(int_to_binary_str(-2 as i32),  "11111111 11111111 11111111 11111110");
+        assert_eq!(int_to_binary_str(-1 as i32),  "11111111 11111111 11111111 11111111");
+        assert_eq!(int_to_binary_str(0 as i32),   "00000000 00000000 00000000 00000000");
+        assert_eq!(int_to_binary_str(1 as i32),   "00000000 00000000 00000000 00000001");
+        assert_eq!(int_to_binary_str(2 as i32),   "00000000 00000000 00000000 00000010");
+        assert_eq!(int_to_binary_str(3 as i32),   "00000000 00000000 00000000 00000011");
+        assert_eq!(int_to_binary_str(4 as i32),   "00000000 00000000 00000000 00000100");
+        assert_eq!(int_to_binary_str(127 as i32), "00000000 00000000 00000000 01111111");
+        assert_eq!(int_to_binary_str(u32::MAX),   "11111111 11111111 11111111 11111111");
+        assert_eq!(int_to_binary_str(2_147_483_648 as u32), "10000000 00000000 00000000 00000000");
     }
 }
