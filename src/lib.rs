@@ -6,6 +6,7 @@ pub mod mp_int {
         add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError,
     };
     use std::{
+        cmp::Ordering,
         fmt::Display,
         mem::size_of,
         ops::{Add, AddAssign, Div, Index, IndexMut, Not, Rem, ShlAssign},
@@ -22,10 +23,10 @@ pub mod mp_int {
     /// for those calculations, while only ≤128bit are available "natively".
     const DIGIT_BITS: u32 = size_of::<DigitT>() as u32;
 
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
     enum Sign {
-        Pos,
-        Neg,
+        Pos = 1,
+        Neg = -1,
     }
 
     impl Sign {
@@ -245,6 +246,10 @@ pub mod mp_int {
             self.into_iter()
         }
 
+        pub fn is_negative(&self) -> bool {
+            self.sign == Sign::Neg
+        }
+
         /// Calculates two's complement of the given number.
         /// Note that, this operations does always return a non-negative number,
         /// regardless of the input's sign.
@@ -255,6 +260,7 @@ pub mod mp_int {
             twos_comp
         }
     }
+
     impl AddAssign<DigitT> for MPint {
         // inplace `+=` operator
         fn add_assign(&mut self, rhs: DigitT) {
@@ -267,8 +273,7 @@ pub mod mp_int {
         type Output = MPint;
 
         fn add(self, rhs: Self) -> Self::Output {
-            assert_eq!(self.width, rhs.width, "operands must have equal widths");
-
+            self.assert_same_width(rhs);
             let mut sum = self.clone();
             let mut carry: bool = false;
 
@@ -347,6 +352,49 @@ pub mod mp_int {
                 result[i] = !d;
             }
             result
+        }
+    }
+
+    /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
+    impl PartialOrd for MPint {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            // self.assert_same_width(other);
+            if self.width != other.width {
+                return None;
+            }
+
+            // Compare sign (smth along `+ > -`)
+            match self.sign.partial_cmp(&other.sign)? {
+                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Less => return Some(Ordering::Less),
+                _ => (), // signs equal
+            }
+
+            // Compare absolute values of bins (starting with most significant digit)
+            let mut self_other_cmp = Ordering::Equal;
+            for (self_d, other_d) in self.iter().zip(other).rev() {
+                if self_d == other_d {
+                    continue;
+                } else {
+                    // On difference, assign relation and exit loop.
+                    if self_d > other_d {
+                        self_other_cmp = Ordering::Greater;
+                    } else {
+                        self_other_cmp = Ordering::Less;
+                    }
+
+                    if self.is_negative() {
+                        // Invert relation for negative signs.
+                        self_other_cmp = match self_other_cmp {
+                            Ordering::Greater => Ordering::Less,
+                            _ => Ordering::Greater,
+                        }
+                    }
+                    break;
+                }
+            }
+
+            Some(self_other_cmp)
         }
     }
 
