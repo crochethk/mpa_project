@@ -335,27 +335,27 @@ pub mod mp_int {
 
         fn add(self, rhs: Self) -> Self::Output {
             self.assert_same_width(rhs);
+
             let mut sum;
             let mut carry: bool = false;
 
             let same_sign = self.sign == rhs.sign;
             if !same_sign {
-                // Get two's-complement of negative operand
-                let (pos, neg_ref) = if self.is_negative() {
-                    (rhs, self)
-                } else {
+                // Order operands
+                let (pos, neg) = if self.sign >= rhs.sign {
                     (self, rhs)
+                } else {
+                    (rhs, self)
                 };
-                //--------------------------
-                // WORKAROUND, currently needed to be able to compare later
-                let mut neg_ref = neg_ref.clone();
-                neg_ref.sign = Sign::Pos;
-                //--------------------------
-                let neg = neg_ref.twos_complement();
 
-                // Carry only ever possible with same signs.
+                let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
+
+                let neg = neg.twos_complement();
+
+                // Meaningful carry only ever possible with same signs.
                 (sum, _) = pos.carry_ripple_add_bins(&neg);
-                if pos < &neg_ref {
+
+                if pos_lt_neg {
                     sum = sum.twos_complement();
                     sum.sign = Sign::Neg;
                 }
@@ -367,6 +367,7 @@ pub mod mp_int {
                 }
             }
 
+            // TODO Reevaluate whether panic on overflow is desirable
             // Overflow can only ever occur, when both signs were equal, since
             // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
             //
@@ -454,6 +455,7 @@ pub mod mp_int {
                 Ordering::Less => return Some(Ordering::Less),
                 _ => {} // signs equal
             }
+
             // Compare absolute values
             let mut self_other_cmp = self.cmp_abs(other)?;
 
