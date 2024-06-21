@@ -279,6 +279,34 @@ pub mod mp_int {
 
             (sum, carry)
         }
+
+        /// Compares the number's __absolute__ values (i.e. ignoring sign).
+        /// ## Returns
+        /// - `Ordering` enum value, representing the relation of `self` to `other`.
+        /// - `None` when operands are incompatible.
+        fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
+            if self.width != other.width {
+                return None;
+            }
+
+            let mut self_other_cmp = Ordering::Equal;
+            // Compare bins/digits
+            for (self_d, other_d) in self.iter().zip(other).rev() {
+                if self_d == other_d {
+                    continue;
+                } else {
+                    // On difference, assign matching relation and exit loop.
+                    if self_d > other_d {
+                        self_other_cmp = Ordering::Greater;
+                    } else {
+                        self_other_cmp = Ordering::Less;
+                    }
+                    break;
+                }
+            }
+
+            Some(self_other_cmp)
+        }
     }
 
     impl AddAssign<DigitT> for MPint {
@@ -403,39 +431,25 @@ pub mod mp_int {
     /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
     impl PartialOrd for MPint {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            // self.assert_same_width(other);
             if self.width != other.width {
                 return None;
             }
 
-            // Compare sign (smth along `+ > -`)
+            // Compare signs
             match self.sign.partial_cmp(&other.sign)? {
                 Ordering::Greater => return Some(Ordering::Greater),
                 Ordering::Less => return Some(Ordering::Less),
-                _ => (), // signs equal
+                _ => {} // signs equal
             }
+            // Compare absolute values
+            let mut self_other_cmp = self.cmp_abs(other)?;
 
-            // Compare absolute values of bins (starting with most significant digit)
-            let mut self_other_cmp = Ordering::Equal;
-            for (self_d, other_d) in self.iter().zip(other).rev() {
-                if self_d == other_d {
-                    continue;
-                } else {
-                    // On difference, assign relation and exit loop.
-                    if self_d > other_d {
-                        self_other_cmp = Ordering::Greater;
-                    } else {
-                        self_other_cmp = Ordering::Less;
-                    }
-
-                    if self.is_negative() {
-                        // Invert relation for negative signs.
-                        self_other_cmp = match self_other_cmp {
-                            Ordering::Greater => Ordering::Less,
-                            _ => Ordering::Greater,
-                        }
-                    }
-                    break;
+            // Invert relation for negative numbers.
+            assert!(self.sign == other.sign, "expected equal signs but were different");
+            if self.is_negative() {
+                self_other_cmp = match self_other_cmp {
+                    Ordering::Greater => Ordering::Less,
+                    _ => Ordering::Greater,
                 }
             }
 
@@ -512,5 +526,4 @@ pub mod mp_int {
     impl_common_val!(one as 1);
     impl_common_val!(two as 2);
     impl_common_val!(ten as 10);
-
 }
