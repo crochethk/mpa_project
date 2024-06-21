@@ -3,13 +3,13 @@ pub mod utils;
 
 pub mod mp_int {
     use crate::utils::{
-        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError,
+        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError, TrimInPlace,
     };
     use std::{
         cmp::Ordering,
         fmt::Display,
         mem::size_of,
-        ops::{Add, AddAssign, Div, Index, IndexMut, Not, Rem, ShlAssign},
+        ops::{Add, AddAssign, Div, Index, IndexMut, Neg, Not, Rem, ShlAssign},
         slice::Iter,
     };
 
@@ -230,7 +230,7 @@ pub mod mp_int {
         /// Given a negative number, it will be prefixed with its sign.
         pub fn to_binary_string(&self) -> String {
             let mut result = String::new();
-            if self.sign == Sign::Neg {
+            if self.is_negative() {
                 result.push(self.sign.into());
             }
 
@@ -259,6 +259,26 @@ pub mod mp_int {
             twos_comp += 1;
             twos_comp
         }
+
+        fn assert_same_width(&self, rhs: &MPint) {
+            assert_eq!(self.width, rhs.width, "operands must have equal widths");
+        }
+
+
+        /// Helper function. Adds two number's bins with carry.
+        /// Note that this **ignores sign**.
+        fn carry_ripple_add_bins(&self, other: &MPint) -> (MPint, bool) {
+            let mut sum = MPint::new(self);
+            let mut carry = false;
+
+            for i in 0..other.len() {
+                let digit: DigitT;
+                (digit, carry) = add_with_carry(self[i], other[i], carry);
+                sum[i] = digit;
+            }
+
+            (sum, carry)
+        }
     }
 
     impl AddAssign<DigitT> for MPint {
@@ -274,18 +294,43 @@ pub mod mp_int {
 
         fn add(self, rhs: Self) -> Self::Output {
             self.assert_same_width(rhs);
-            let mut sum = self.clone();
+            let mut sum;
             let mut carry: bool = false;
 
-            // Carry-Ripple add overlapping bins
-            for i in 0..rhs.len() {
-                let digit: DigitT;
-                (digit, carry) = add_with_carry(self[i], rhs[i], carry);
-                sum[i] = digit;
+            let same_sign = self.sign == rhs.sign;
+            if !same_sign {
+                // Get two's-complement of negative operand
+                let (pos, neg_ref) = if self.is_negative() {
+                    (rhs, self)
+                } else {
+                    (self, rhs)
+                };
+                //--------------------------
+                // WORKAROUND, currently needed to be able to compare later
+                let mut neg_ref = neg_ref.clone();
+                neg_ref.sign = Sign::Pos;
+                //--------------------------
+                let neg = neg_ref.twos_complement();
+
+                // Carry only ever possible with same signs.
+                (sum, _) = pos.carry_ripple_add_bins(&neg);
+                if pos < &neg_ref {
+                    sum = sum.twos_complement();
+                    sum.sign = Sign::Neg;
+                }
+            } else {
+                // operands have same sign
+                (sum, carry) = self.carry_ripple_add_bins(rhs);
+                if self.is_negative() {
+                    sum.sign = Sign::Neg;
+                }
             }
 
-            assert!(!carry, "Overlfow occured");
-
+            // Overflow can only ever occur, when both signs were equal, since
+            // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
+            //
+            // I.e.: `(same_sign && carry) => overflow`
+            assert!(!carry, "MPint::Add resulted in overflow");
             sum
         }
     }
@@ -398,6 +443,19 @@ pub mod mp_int {
         }
     }
 
+    impl Neg for &MPint {
+        type Output = MPint;
+
+        fn neg(self) -> Self::Output {
+            let mut result = self.clone();
+            result.sign = match result.sign {
+                Sign::Pos => Sign::Neg,
+                _ => Sign::Neg,
+            };
+            result
+        }
+    }
+
     /// Indexing type
     type Idx = usize;
     impl IndexMut<Idx> for MPint {
@@ -454,4 +512,5 @@ pub mod mp_int {
     impl_common_val!(one as 1);
     impl_common_val!(two as 2);
     impl_common_val!(ten as 10);
+
 }

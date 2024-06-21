@@ -95,6 +95,16 @@ fn digit_char_to_value(ch: u8) -> Option<u8> {
     }
 }
 
+pub trait TrimInPlace {
+    fn trim_end_in_place(&mut self);
+}
+impl TrimInPlace for String {
+    fn trim_end_in_place(&mut self) {
+        let new_end = self.trim_end().len();
+        self.truncate(new_end);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     msg: &'static str,
