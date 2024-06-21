@@ -21,7 +21,7 @@ pub mod mp_int {
     /// Number of bits used per digit in the internal number system.
     /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
     /// for those calculations, while only ≤128bit are available "natively".
-    const DIGIT_BITS: u32 = size_of::<DigitT>() as u32;
+    const DIGIT_BITS: u32 = (size_of::<DigitT>() as u32) * 8;
 
     #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
     enum Sign {
