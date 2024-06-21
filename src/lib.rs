@@ -264,6 +264,19 @@ pub mod mp_int {
             assert_eq!(self.width, rhs.width, "operands must have equal widths");
         }
 
+        fn to_hex_string(&self) -> String {
+            const X_WIDTH: usize = (DIGIT_BITS / 4) as usize;
+            let mut hex: String = String::new();
+            if self.is_negative() {
+                hex.push(self.sign.into());
+            }
+            hex = self
+                .iter()
+                .rev()
+                .fold(hex, |acc, d| acc + &format!("{:0width$X} ", d, width = X_WIDTH));
+            hex.trim_end_in_place();
+            hex
+        }
 
         /// Helper function. Adds two number's bins with carry.
         /// Note that this **ignores sign**.
@@ -501,7 +514,7 @@ pub mod mp_int {
     // TODO change this to an actual decimal string
     impl Display for MPint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.to_binary_string())
+            write!(f, "{}", self.to_hex_string())
         }
     }
 
