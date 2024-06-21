@@ -34,6 +34,16 @@ pub mod mp_int {
         const MINUS: char = '-';
     }
 
+    impl Not for Sign {
+        type Output = Self;
+        fn not(self) -> Self::Output {
+            match self {
+                Self::Pos => Self::Neg,
+                Self::Neg => Self::Pos,
+            }
+        }
+    }
+
     impl TryFrom<char> for Sign {
         type Error = ParseError;
 
@@ -250,12 +260,10 @@ pub mod mp_int {
             self.sign == Sign::Neg
         }
 
-        /// Calculates two's complement of the given number.
-        /// Note that, this operations does always return a non-negative number,
-        /// regardless of the input's sign.
+        /// Calculates the two's complement of the given number.
+        /// Note that the result will have an _inverted sign_.
         fn twos_complement(&self) -> MPint {
             let mut twos_comp = !(self);
-            twos_comp.sign = Sign::Pos;
             twos_comp += 1;
             twos_comp
         }
@@ -356,8 +364,7 @@ pub mod mp_int {
                 (sum, _) = pos.carry_ripple_add_bins(&neg);
 
                 if pos_lt_neg {
-                    sum = sum.twos_complement();
-                    sum.sign = Sign::Neg;
+                    sum = sum.twos_complement(); // sign is switched here
                 }
             } else {
                 // operands have same sign
@@ -477,10 +484,7 @@ pub mod mp_int {
 
         fn neg(self) -> Self::Output {
             let mut result = self.clone();
-            result.sign = match result.sign {
-                Sign::Pos => Sign::Neg,
-                _ => Sign::Neg,
-            };
+            result.sign = !result.sign;
             result
         }
     }
