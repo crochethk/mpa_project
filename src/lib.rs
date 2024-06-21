@@ -98,11 +98,29 @@ pub mod mp_int {
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
         fn new(width: usize) -> Self {
             let bin_count = width.div_ceil(DIGIT_BITS as usize);
-            let actual_width = bin_count * DIGIT_BITS as usize;
+            let data = vec![0; bin_count];
+            Self::new(data)
+        }
+    }
+
+    impl CreateNewFrom<Vec<DigitT>> for MPint {
+        /// Creates new instance by consuming the given `digits` Vec. Each element of
+        /// `digits` is expected...
+        /// - with respect to base `2^DIGIT_BITS` and
+        /// - have __little endian__ order, i.e. least significant digit at index 0.
+        ///
+        /// The resulting width will be calculated automatically based on `digits.len()`.
+        /// So in order to create numbers of same widths, provide Vecs of same lengths.
+        ///
+        /// ## Returns
+        /// - New instance of `MPint`, containing the given digits and an appropriate width.
+        ///
+        fn new(digits: Vec<DigitT>) -> Self {
+            let width = digits.len() * DIGIT_BITS as usize;
             Self {
-                width: actual_width,
-                data: vec![0; bin_count],
-                sign: Sign::Pos,
+                width,
+                data: digits,
+                sign: Sign::default(),
             }
         }
     }
