@@ -27,3 +27,4 @@ rust-project.json
 
 **/tmp
 **---LOCAL**
+**/__pycache__/
