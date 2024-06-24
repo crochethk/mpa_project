@@ -586,4 +586,138 @@ pub mod mp_int {
     impl_common_val!(one as 1);
     impl_common_val!(two as 2);
     impl_common_val!(ten as 10);
+
+    /// Shorthand macro for `MPint::new(vec![...])` that creates `MPint` from a
+    /// list of digits, similar to `vec![1,2,3]`.
+    #[macro_export]
+    macro_rules! mpint {
+        ($($d:expr),*) => {
+            {
+                let digits = vec![$($d,)*];
+                MPint::new(digits)
+            }
+        };
+    }
+
+    #[allow(warnings)]
+    #[cfg(test)]
+    mod mpint_tests {
+        use super::*;
+
+        mod test_partial_cmp {
+            use super::*;
+            use Ordering::{Equal, Greater, Less};
+
+            #[test]
+            fn same_sign_positive() {
+                // abs(a) > abs(b) and abs(b) < abs(a)
+                {
+                    let (a, b) = (mpint![1, 42], mpint![9, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                    assert_eq!(b.partial_cmp(&a), Some(Less));
+                }
+                {
+                    let (a, b) = (mpint![0, 99, 5, 17], mpint![99, 16, 5, 17]);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                    assert_eq!(b.partial_cmp(&a), Some(Less));
+                }
+                {
+                    let (a, b) = (mpint![4, 3, 42, 0], mpint![1, 3, 42, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                    assert_eq!(b.partial_cmp(&a), Some(Less));
+                }
+                // abs(a) == abs(b)
+                {
+                    let (a, b) = (mpint![9, 16, 5, 17], mpint![9, 16, 5, 17]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 42, 0, 0, 0, 0, 1], mpint![0, 42, 0, 0, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                }
+            }
+
+            #[test]
+            fn same_sign_negative() {
+                // abs(a) > abs(b) and abs(b) < abs(a)
+                {
+                    let (a, b) = (mpint![1, 42], mpint![9, 1]);
+                    let (a, b) = (-&a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![0, 99, 5, 17], mpint![99, 16, 5, 17]);
+                    let (a, b) = (-&a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![4, 3, 42, 0], mpint![1, 3, 42, 0]);
+                    let (a, b) = (-&a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                // abs(a) == abs(b)
+                {
+                    let (a, b) = (mpint![9, 16, 5, 17], mpint![9, 16, 5, 17]);
+                    let (a, b) = (-&a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 42, 0, 0, 0, 0, 1], mpint![0, 42, 0, 0, 0, 0, 1]);
+                    let (a, b) = (-&a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                }
+            }
+
+            #[test]
+            fn different_signs() {
+                // abs(a) > abs(b)
+                {
+                    let (a, b) = (mpint![0, 0, 42], mpint![1, 2, 3]);
+                    let (a, b) = (a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![0, 0, 42], mpint![1, 2, 3]);
+                    let (a, b) = (-&a, b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                }
+                // abs(a) < abs(b)
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 42]);
+                    let (a, b) = (a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 42]);
+                    let (a, b) = (-&a, b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                }
+                // abs(a) == abs(b)
+                {
+                    let (a, b) = (mpint![42, 42, 42, 42], mpint![42, 42, 42, 42]);
+                    let (a, b) = (a, -&b);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![42, 42, 42, 42], mpint![42, 42, 42, 42]);
+                    let (a, b) = (-&a, b);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                }
+            }
+
+            #[test]
+            fn zero_equality() {
+                let (z_pos1, z_pos2) = (mpint![0, 0], mpint![0, 0]);
+                let (z_neg1, z_neg2) = (-&z_pos1, -&z_pos2);
+
+                assert_eq!(z_pos1.partial_cmp(&z_pos2), Some(Equal));
+                assert_eq!(z_pos1.partial_cmp(&z_neg1), Some(Equal));
+                assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
+                assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
+            }
+        }
+    }
 }
