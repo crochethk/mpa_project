@@ -139,7 +139,6 @@ pub mod mp_int {
     }
 
     impl MPint {
-        /// !untested
         /// Calculates quotient and remainder using the given _native_ integer
         /// divisor.
         ///
@@ -206,7 +205,6 @@ pub mod mp_int {
             num
         }
 
-        /// !untested
         /// Creates new number with _at least_ `width` bits (see `new()`) using the given
         /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
@@ -419,7 +417,6 @@ pub mod mp_int {
         }
     }
 
-    /// ! untested
     /// `/` Operator for `DigitT` divisor
     impl Div<DigitT> for &MPint {
         type Output = MPint;
@@ -429,7 +426,6 @@ pub mod mp_int {
         }
     }
 
-    /// ! untested
     /// `%` Operator for `DigitT` divisor
     impl Rem<DigitT> for &MPint {
         type Output = i128;
@@ -589,6 +585,7 @@ pub mod mp_int {
 
     /// Shorthand macro for `MPint::new(vec![...])` that creates `MPint` from a
     /// list of digits, similar to `vec![1,2,3]`.
+    /// Digits are expected to start with the least significant.
     #[macro_export]
     macro_rules! mpint {
         ($($d:expr),*) => {
