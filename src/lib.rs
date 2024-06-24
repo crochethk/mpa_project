@@ -73,11 +73,24 @@ pub mod mp_int {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone)]
     pub struct MPint {
         width: usize,
         data: Vec<DigitT>,
         sign: Sign,
+    }
+
+    impl PartialEq for MPint {
+        fn eq(&self, other: &Self) -> bool {
+            if self.width != other.width {
+                false
+            } else if self.sign != other.sign {
+                // different signs only eq when both are 0
+                self.is_zero() && other.is_zero()
+            } else {
+                self.data == other.data
+            }
+        }
     }
 
     pub trait CreateNewFrom<T> {
@@ -346,6 +359,10 @@ pub mod mp_int {
 
             Some(self_other_cmp)
         }
+
+        fn is_zero(&self) -> bool {
+            self.data.iter().all(|d| *d == 0)
+        }
     }
 
     impl AddAssign<DigitT> for MPint {
@@ -472,6 +489,11 @@ pub mod mp_int {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             if self.width != other.width {
                 return None;
+            }
+
+            // Treat possible +/-0 as equal
+            if self.is_zero() && other.is_zero() {
+                return Some(Ordering::Equal);
             }
 
             // Compare signs
