@@ -17,10 +17,13 @@ def test_operation_result(
     result (`res_to_verify`) with python's calculation.
     """
 
+    # removes whitespace
+    rm_whspc = lambda s: "".join(s.split())
+
     try:
-        lhs = int(lhs, base)
-        rhs = int(rhs, base)
-        res_to_verify = int(res_to_verify, base)
+        lhs = int(rm_whspc(lhs), base)
+        rhs = int(rm_whspc(rhs), base)
+        res_to_verify = int(rm_whspc(res_to_verify), base)
     except ValueError:
         print("Error: input numbers must all be integers of specified base.")
         sys.exit(1)
