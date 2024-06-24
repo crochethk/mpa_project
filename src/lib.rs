@@ -511,7 +511,8 @@ pub mod mp_int {
             if self.is_negative() {
                 self_other_cmp = match self_other_cmp {
                     Ordering::Greater => Ordering::Less,
-                    _ => Ordering::Greater,
+                    Ordering::Less => Ordering::Greater,
+                    Ordering::Equal => Ordering::Equal,
                 }
             }
 
