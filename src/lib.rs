@@ -604,6 +604,62 @@ pub mod mp_int {
     mod mpint_tests {
         use super::*;
 
+        mod test_to_hex_string {
+            use super::*;
+            #[test]
+            fn positive_values() {
+                {
+                    let a = mpint![0, DigitT::MAX, 2, 3];
+                    let expected = concat!(
+                        "0000000000000003 ",
+                        "0000000000000002 ",
+                        "FFFFFFFFFFFFFFFF ",
+                        "0000000000000000"
+                    );
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+                {
+                    let a = mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
+                    let expected =
+                        concat!("8000000000000000 ", "0000000000002000 ", "000000000000002A",);
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+                {
+                    let a = mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let expected =
+                        concat!("FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+            }
+
+            #[test]
+            fn negative_values() {
+                {
+                    let a = -&mpint![0, DigitT::MAX, 2, 3];
+                    let expected = concat!(
+                        "-",
+                        "0000000000000003 ",
+                        "0000000000000002 ",
+                        "FFFFFFFFFFFFFFFF ",
+                        "0000000000000000"
+                    );
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+                {
+                    let a = -&mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
+                    let expected =
+                        concat!("-", "8000000000000000 ", "0000000000002000 ", "000000000000002A",);
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+                {
+                    let a = -&mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let expected =
+                        concat!("-", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
+                    assert_eq!(a.to_hex_string(), expected);
+                }
+            }
+        }
+
         mod test_partial_cmp {
             use super::*;
             use Ordering::{Equal, Greater, Less};
