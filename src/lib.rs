@@ -605,12 +605,14 @@ pub mod mp_int {
         use super::*;
         use crate::utils::Op;
 
+        const D_MAX: DigitT = DigitT::MAX;
+
         mod test_to_hex_string {
             use super::*;
             #[test]
             fn positive_values() {
                 {
-                    let a = mpint![0, DigitT::MAX, 2, 3];
+                    let a = mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "0000000000000003 ",
                         "0000000000000002 ",
@@ -626,7 +628,7 @@ pub mod mp_int {
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
                         concat!("FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
@@ -636,7 +638,7 @@ pub mod mp_int {
             #[test]
             fn negative_values() {
                 {
-                    let a = -&mpint![0, DigitT::MAX, 2, 3];
+                    let a = -&mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "-",
                         "0000000000000003 ",
@@ -653,7 +655,7 @@ pub mod mp_int {
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = -&mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let a = -&mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
                         concat!("-", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
@@ -779,7 +781,6 @@ pub mod mp_int {
 
         mod test_add {
             use super::*;
-            const MAX: DigitT = DigitT::MAX;
             const OP: Op = Op::PLUS;
 
             fn test_addition_correctness(a: MPint, b: MPint) {
@@ -789,52 +790,43 @@ pub mod mp_int {
                 assert!(test_result.0, "{}", test_result.1);
             }
 
-            #[test]
-            fn same_signs_normal_case() {
-                {
+            mod same_signs {
+                use super::*;
+                #[test]
+                fn same_signs_normal_case() {
                     // a>b
                     let a = mpint![0, 0, 42, 1];
                     let b = mpint![42, 42, 42, 0];
                     test_addition_correctness(-&a, -&b);
                     test_addition_correctness(a, b);
-            #[test]
-            fn same_signs() {
-                {
-                    let a = mpint![0, 0, 42, 1];
-                    let b = mpint![42, 42, 42, 0];
-                    let result = &a + &b;
-                    let test_result = verify_arithmetic_result(&a, OP, &b, &result);
-                    assert!(test_result.0, "{}", test_result.1);
-
-                    let mut a_neg = -&a;
-                    let mut b_neg = -&b;
-                    let result = &a_neg + &b_neg;
-                    let test_result = verify_arithmetic_result(&a_neg, OP, &b_neg, &result);
-                    assert!(test_result.0, "{}", test_result.1);
+                    // a<b
+                    let a = mpint![42, 42, 42, 0];
+                    let b = mpint![1, 2, 3, 4];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
                 }
-                // {
-                //     let a = mpint![0, 0, 0, 3, 1];
-                //     let b = mpint![0, 0, 0, MAX, 0];
-                //     let a_neg = -&a;
-                //     let b_neg = -&b;
-                //     todo!();
-                // }
-                // {
-                //     let a = mpint![MAX - 1, MAX - 2, MAX - 42];
-                //     let b = mpint![1, 2, 42];
-                //     let a_neg = -&a;
-                //     let b_neg = -&b;
-                //     todo!();
-                // }
-                // {
-                //     let a = mpint![0, 0, 0];
-                //     let b = mpint![MAX, MAX, MAX];
-                //     let a_neg = -&a;
-                //     let b_neg = -&b;
-                //     todo!();
-                // }
+                #[test]
+                fn same_signs_internal_overflow() {
+                    let a = mpint![0, 0, 0, 3, 1];
+                    let b = mpint![0, 0, 0, D_MAX, 0];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+                #[test]
+                fn same_signs_nearly_overflow_1() {
+                    let a = mpint![D_MAX - 1, D_MAX - 42, D_MAX - 2];
+                    let b = mpint![1, 42, 2];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+                #[test]
+                fn same_signs_nearly_overflow_2() {
+                    let a = mpint![0, 0, 0];
+                    let b = mpint![D_MAX, D_MAX, D_MAX];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
             }
-
         }
 
         /// Verifies the result of the arithmetic operation, defined by the given
