@@ -521,9 +521,16 @@ pub mod mp_int {
         type Output = MPint;
 
         fn neg(self) -> Self::Output {
-            let mut result = self.clone();
-            result.sign = !result.sign;
-            result
+            -(self.clone())
+        }
+    }
+
+    impl Neg for MPint {
+        type Output = MPint;
+        // "Consuming" negation operation (`-self`)
+        fn neg(mut self) -> Self::Output {
+            self.sign = !self.sign;
+            self
         }
     }
 
