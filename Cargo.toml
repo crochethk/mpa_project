@@ -6,6 +6,13 @@ edition = "2021"
 [dependencies]
 num-traits = "0.2"
 
+[dependencies.pyo3]
+version = "0.21.2"
+# features = ["auto-initialize"]
+default-features = false
+features = []
+
 [lib]
+doctest = false
 name = "mpa_lib"
 path = "src/lib.rs"

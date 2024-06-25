@@ -3,6 +3,21 @@ use std::f64::consts::{LOG10_2, LOG2_10};
 use std::fmt::Display;
 use std::ops::{Div, Rem};
 
+pub enum Op {
+    PLUS,
+    MINUS,
+    MULT,
+}
+impl Op {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Op::PLUS => "+",
+            Op::MINUS => "-",
+            Op::MULT => "*",
+        }
+    }
+}
+
 /// Basically a full adder for `u64`
 ///
 /// ## Explanation

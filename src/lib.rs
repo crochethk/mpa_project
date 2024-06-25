@@ -301,7 +301,7 @@ pub mod mp_int {
             assert_eq!(self.width, rhs.width, "operands must have equal widths");
         }
 
-        fn to_hex_string(&self) -> String {
+        pub fn to_hex_string(&self) -> String {
             const X_WIDTH: usize = (DIGIT_BITS / 4) as usize;
             let mut hex: String = String::new();
             if self.is_negative() {
@@ -599,7 +599,11 @@ pub mod mp_int {
     #[allow(warnings)]
     #[cfg(test)]
     mod mpint_tests {
+        use pyo3::prelude::*;
+        use pyo3::types::PyList;
+
         use super::*;
+        use crate::utils::Op;
 
         mod test_to_hex_string {
             use super::*;
@@ -771,6 +775,99 @@ pub mod mp_int {
                 assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
             }
+        }
+
+        mod test_add {
+            use super::*;
+            const MAX: DigitT = DigitT::MAX;
+            const OP: Op = Op::PLUS;
+
+            #[test]
+            fn same_signs() {
+                {
+                    let a = mpint![0, 0, 42, 1];
+                    let b = mpint![42, 42, 42, 0];
+                    let result = &a + &b;
+                    let test_result = verify_arithmetic_result(&a, OP, &b, &result);
+                    assert!(test_result.0, "{}", test_result.1);
+
+                    let mut a_neg = -&a;
+                    let mut b_neg = -&b;
+                    let result = &a_neg + &b_neg;
+                    let test_result = verify_arithmetic_result(&a_neg, OP, &b_neg, &result);
+                    assert!(test_result.0, "{}", test_result.1);
+                }
+                // {
+                //     let a = mpint![0, 0, 0, 3, 1];
+                //     let b = mpint![0, 0, 0, MAX, 0];
+                //     let a_neg = -&a;
+                //     let b_neg = -&b;
+                //     todo!();
+                // }
+                // {
+                //     let a = mpint![MAX - 1, MAX - 2, MAX - 42];
+                //     let b = mpint![1, 2, 42];
+                //     let a_neg = -&a;
+                //     let b_neg = -&b;
+                //     todo!();
+                // }
+                // {
+                //     let a = mpint![0, 0, 0];
+                //     let b = mpint![MAX, MAX, MAX];
+                //     let a_neg = -&a;
+                //     let b_neg = -&b;
+                //     todo!();
+                // }
+            }
+
+        }
+
+        /// Verifies the result of the arithmetic operation, defined by the given
+        /// parameters, using an external python script (`mpint_test_helper`).
+        ///
+        /// # Arguments
+        /// - `lhs` - Left-hand side operand.
+        /// - `op` - Operator.
+        /// - `rhs` - Right-hand side operand.
+        /// - `res_to_verify` - The result to verify against python's calculations.
+        fn verify_arithmetic_result(
+            lhs: &MPint,
+            op: Op,
+            rhs: &MPint,
+            res_to_verify: &MPint,
+        ) -> (bool, String) {
+            // We will import ".../src/mpint_test_helper.py"
+            let project_root = std::env::current_dir().unwrap();
+            let py_mod_path = project_root.join("src");
+            let py_module_dir = py_mod_path.to_str();
+            let py_module_name = "mpint_test_helper";
+
+            // Init pyo3
+            pyo3::prepare_freethreaded_python();
+            let py_result = Python::with_gil(move |py| -> Result<(bool, String), PyErr> {
+                // Add .py file's dir to sys.path list
+                let sys_path = py.import_bound("sys")?.getattr("path")?;
+                let sys_path: &Bound<'_, PyList> = sys_path.downcast()?;
+                sys_path.append(py_module_dir);
+
+                // For this to work build.rs is setup to copy the `.py` to the target dir
+                let test_helper = py.import_bound(py_module_name)?;
+
+                let fn_name = "test_operation_result";
+                let args = (
+                    lhs.to_hex_string(),
+                    op.to_str(),
+                    rhs.to_hex_string(),
+                    res_to_verify.to_hex_string(),
+                    16, //base of the number strings
+                );
+                let test_result: (bool, String) =
+                    test_helper.getattr(fn_name)?.call1(args)?.extract()?;
+
+                Ok(test_result)
+            });
+
+            py_result.unwrap()
         }
     }
 }
