@@ -294,6 +294,7 @@ pub mod mp_int {
         fn twos_complement(&self) -> MPint {
             let mut twos_comp = !(self);
             twos_comp += 1;
+            twos_comp.sign = !twos_comp.sign;
             twos_comp
         }
 
@@ -470,7 +471,7 @@ pub mod mp_int {
     impl Not for &MPint {
         type Output = MPint;
 
-        /// Performs bitwise "not" aka. `!`.
+        /// Inverts all bits, i.e. performs bitwise "not" (`!`).
         fn not(self) -> Self::Output {
             let mut result = MPint::new(self);
             for (i, d) in self.iter().enumerate() {
