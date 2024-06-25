@@ -782,6 +782,21 @@ pub mod mp_int {
             const MAX: DigitT = DigitT::MAX;
             const OP: Op = Op::PLUS;
 
+            fn test_addition_correctness(a: MPint, b: MPint) {
+                let result = &a + &b;
+                let test_result = verify_arithmetic_result(&a, OP, &b, &result);
+                println!("{:?}", test_result);
+                assert!(test_result.0, "{}", test_result.1);
+            }
+
+            #[test]
+            fn same_signs_normal_case() {
+                {
+                    // a>b
+                    let a = mpint![0, 0, 42, 1];
+                    let b = mpint![42, 42, 42, 0];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
             #[test]
             fn same_signs() {
                 {
