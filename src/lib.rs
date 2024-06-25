@@ -125,7 +125,7 @@ pub mod mp_int {
         /// The resulting width will be calculated automatically based on `digits.len()`.
         /// So in order to create numbers of same widths, provide Vecs of same lengths.
         ///
-        /// ## Returns
+        /// # Returns
         /// - New instance of `MPint`, containing the given digits and an appropriate width.
         ///
         fn new(digits: Vec<DigitT>) -> Self {
@@ -142,10 +142,10 @@ pub mod mp_int {
         /// Calculates quotient and remainder using the given _native_ integer
         /// divisor.
         ///
-        /// ### Footnote
+        /// ## Footnote
         /// Since how division works, the remainder will always be `0 ≤ |rem| < divisor`.
         ///
-        /// ### Algorithm Description
+        /// ## Algorithm Description
         /// - Division Term: `A = q*b + r`
         ///     - `A` = self
         ///     - `b` = divisor
@@ -208,7 +208,7 @@ pub mod mp_int {
         /// Creates new number with _at least_ `width` bits (see `new()`) using the given
         /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
-        /// ### Returns
+        /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
         ///  - `Err(ParseError)` if:
         ///     - `width` was too short
@@ -331,7 +331,7 @@ pub mod mp_int {
         }
 
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
-        /// ## Returns
+        /// # Returns
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
         /// - `None` when operands are incompatible.
         fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
