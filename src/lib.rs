@@ -835,6 +835,63 @@ pub mod mp_int {
                     test_addition_correctness(a, b);
                 }
             }
+
+            mod diff_signs {
+                use super::*;
+                #[test]
+                fn normal_case_lhs_gt_rhs() {
+                    // a>b:
+                    let a = mpint![10, 20, 30, 40];
+                    let b = mpint![1, 2, 3, 4];
+                    // a + (–b)
+                    test_addition_correctness(a.clone(), -&b);
+                    // (-a) + b
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_gt_rhs_1() {
+                    // a>b:
+                    let a = mpint![0, D_MAX, 2, 0, 1];
+                    let b = mpint![0, 0, 42, 0, 0];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_gt_rhs_2() {
+                    // a>b:
+                    let a = mpint![0, 0, 0, 0, 1];
+                    let b = mpint![0, 42, 0, 0, 0];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+
+                #[test]
+                fn normal_case_lhs_lt_rhs() {
+                    // a<b:
+                    let a = mpint![1, 2, 3, 4];
+                    let b = mpint![10, 20, 30, 40];
+                    // a + (–b)
+                    test_addition_correctness(a.clone(), -&b);
+                    // (-a) + b
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_lt_rhs_1() {
+                    // a<b:
+                    let a = mpint![0, 0, 42, 0, 0];
+                    let b = mpint![0, D_MAX, 2, 0, 1];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_lt_rhs_2() {
+                    // a<b:
+                    let a = mpint![0, 42, 0, 0, 0];
+                    let b = mpint![0, 0, 0, 0, 1];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+            }
         }
 
         /// Verifies the result of the arithmetic operation, defined by the given
