@@ -125,7 +125,7 @@ pub mod mp_int {
         /// The resulting width will be calculated automatically based on `digits.len()`.
         /// So in order to create numbers of same widths, provide Vecs of same lengths.
         ///
-        /// ## Returns
+        /// # Returns
         /// - New instance of `MPint`, containing the given digits and an appropriate width.
         ///
         fn new(digits: Vec<DigitT>) -> Self {
@@ -142,10 +142,10 @@ pub mod mp_int {
         /// Calculates quotient and remainder using the given _native_ integer
         /// divisor.
         ///
-        /// ### Footnote
+        /// ## Footnote
         /// Since how division works, the remainder will always be `0 ≤ |rem| < divisor`.
         ///
-        /// ### Algorithm Description
+        /// ## Algorithm Description
         /// - Division Term: `A = q*b + r`
         ///     - `A` = self
         ///     - `b` = divisor
@@ -208,7 +208,7 @@ pub mod mp_int {
         /// Creates new number with _at least_ `width` bits (see `new()`) using the given
         /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
-        /// ### Returns
+        /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
         ///  - `Err(ParseError)` if:
         ///     - `width` was too short
@@ -294,6 +294,7 @@ pub mod mp_int {
         fn twos_complement(&self) -> MPint {
             let mut twos_comp = !(self);
             twos_comp += 1;
+            twos_comp.sign = !twos_comp.sign;
             twos_comp
         }
 
@@ -301,7 +302,7 @@ pub mod mp_int {
             assert_eq!(self.width, rhs.width, "operands must have equal widths");
         }
 
-        fn to_hex_string(&self) -> String {
+        pub fn to_hex_string(&self) -> String {
             const X_WIDTH: usize = (DIGIT_BITS / 4) as usize;
             let mut hex: String = String::new();
             if self.is_negative() {
@@ -331,7 +332,7 @@ pub mod mp_int {
         }
 
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
-        /// ## Returns
+        /// # Returns
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
         /// - `None` when operands are incompatible.
         fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
@@ -378,7 +379,7 @@ pub mod mp_int {
             self.assert_same_width(rhs);
 
             let mut sum;
-            let mut carry: bool = false;
+            let mut _carry: bool = false;
 
             let same_sign = self.sign == rhs.sign;
             if !same_sign {
@@ -401,18 +402,19 @@ pub mod mp_int {
                 }
             } else {
                 // operands have same sign
-                (sum, carry) = self.carry_ripple_add_bins(rhs);
+                (sum, _carry) = self.carry_ripple_add_bins(rhs);
                 if self.is_negative() {
                     sum.sign = Sign::Neg;
                 }
             }
 
-            // TODO Reevaluate whether panic on overflow is desirable
-            // Overflow can only ever occur, when both signs were equal, since
-            // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
-            //
-            // I.e.: `(same_sign && carry) => overflow`
-            assert!(!carry, "MPint::Add resulted in overflow");
+            // TODO If panic on overflow is desirable, implement other "wrapping_add" variants
+            // TODO since overflow is ok e.g. when calculating two's complement.
+            // // Overflow can only ever occur, when both signs were equal, since
+            // // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
+            // //
+            // // I.e.: `(same_sign && carry) => overflow`
+            // // assert!(!carry, "MPint::Add resulted in overflow");
             sum
         }
     }
@@ -470,7 +472,7 @@ pub mod mp_int {
     impl Not for &MPint {
         type Output = MPint;
 
-        /// Performs bitwise "not" aka. `!`.
+        /// Inverts all bits, i.e. performs bitwise "not" (`!`).
         fn not(self) -> Self::Output {
             let mut result = MPint::new(self);
             for (i, d) in self.iter().enumerate() {
@@ -520,9 +522,16 @@ pub mod mp_int {
         type Output = MPint;
 
         fn neg(self) -> Self::Output {
-            let mut result = self.clone();
-            result.sign = !result.sign;
-            result
+            -(self.clone())
+        }
+    }
+
+    impl Neg for MPint {
+        type Output = MPint;
+        // "Consuming" negation operation (`-self`)
+        fn neg(mut self) -> Self::Output {
+            self.sign = !self.sign;
+            self
         }
     }
 
@@ -596,17 +605,22 @@ pub mod mp_int {
         };
     }
 
-    #[allow(warnings)]
     #[cfg(test)]
     mod mpint_tests {
+        use pyo3::prelude::*;
+        use pyo3::types::PyList;
+
         use super::*;
+        use crate::utils::Op;
+
+        const D_MAX: DigitT = DigitT::MAX;
 
         mod test_to_hex_string {
             use super::*;
             #[test]
             fn positive_values() {
                 {
-                    let a = mpint![0, DigitT::MAX, 2, 3];
+                    let a = mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "0000000000000003 ",
                         "0000000000000002 ",
@@ -622,7 +636,7 @@ pub mod mp_int {
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
                         concat!("FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
@@ -632,7 +646,7 @@ pub mod mp_int {
             #[test]
             fn negative_values() {
                 {
-                    let a = -&mpint![0, DigitT::MAX, 2, 3];
+                    let a = -&mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "-",
                         "0000000000000003 ",
@@ -649,7 +663,7 @@ pub mod mp_int {
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = -&mpint![DigitT::MAX, DigitT::MAX, DigitT::MAX];
+                    let a = -&mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
                         concat!("-", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
@@ -771,6 +785,224 @@ pub mod mp_int {
                 assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
             }
+        }
+
+        mod test_add {
+            use super::*;
+            const OP: Op = Op::PLUS;
+
+            fn test_addition_correctness(a: MPint, b: MPint) {
+                let result = &a + &b;
+                let test_result = verify_arithmetic_result(&a, OP, &b, &result);
+                println!("{:?}", test_result);
+                assert!(test_result.0, "{}", test_result.1);
+            }
+
+            mod same_signs {
+                use super::*;
+                #[test]
+                fn same_signs_normal_case() {
+                    // a>b
+                    let a = mpint![0, 0, 42, 1];
+                    let b = mpint![42, 42, 42, 0];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                    // a<b
+                    let a = mpint![42, 42, 42, 0];
+                    let b = mpint![1, 2, 3, 4];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+                #[test]
+                fn same_signs_internal_overflow() {
+                    let a = mpint![0, 0, 0, 3, 1];
+                    let b = mpint![0, 0, 0, D_MAX, 0];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+                #[test]
+                fn same_signs_nearly_overflow_1() {
+                    let a = mpint![D_MAX - 1, D_MAX - 42, D_MAX - 2];
+                    let b = mpint![1, 42, 2];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+                #[test]
+                fn same_signs_nearly_overflow_2() {
+                    let a = mpint![0, 0, 0];
+                    let b = mpint![D_MAX, D_MAX, D_MAX];
+                    test_addition_correctness(-&a, -&b);
+                    test_addition_correctness(a, b);
+                }
+            }
+
+            mod diff_signs {
+                use super::*;
+                #[test]
+                fn normal_case_lhs_gt_rhs() {
+                    // a>b:
+                    let a = mpint![10, 20, 30, 40];
+                    let b = mpint![1, 2, 3, 4];
+                    // a + (–b)
+                    test_addition_correctness(a.clone(), -&b);
+                    // (-a) + b
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_gt_rhs_1() {
+                    // a>b:
+                    let a = mpint![0, D_MAX, 2, 0, 1];
+                    let b = mpint![0, 0, 42, 0, 0];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_gt_rhs_2() {
+                    // a>b:
+                    let a = mpint![0, 0, 0, 0, 1];
+                    let b = mpint![0, 42, 0, 0, 0];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+
+                #[test]
+                fn normal_case_lhs_lt_rhs() {
+                    // a<b:
+                    let a = mpint![1, 2, 3, 4];
+                    let b = mpint![10, 20, 30, 40];
+                    // a + (–b)
+                    test_addition_correctness(a.clone(), -&b);
+                    // (-a) + b
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_lt_rhs_1() {
+                    // a<b:
+                    let a = mpint![0, 0, 42, 0, 0];
+                    let b = mpint![0, D_MAX, 2, 0, 1];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+                #[test]
+                fn internal_underflow_lhs_lt_rhs_2() {
+                    // a<b:
+                    let a = mpint![0, 42, 0, 0, 0];
+                    let b = mpint![0, 0, 0, 0, 1];
+                    test_addition_correctness(a.clone(), -&b);
+                    test_addition_correctness(-a, b);
+                }
+            }
+
+            mod zero_result {
+                use super::*;
+                #[test]
+                fn plus_minus_max() {
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
+                    let b = -a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&b + &a, zero);
+                }
+                #[test]
+                fn normal_values() {
+                    let a = mpint![630, 801, 366, 345, 372];
+                    let b = -a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&b + &a, zero);
+                }
+                #[test]
+                fn both_zero() {
+                    let a = mpint![0, 0, 0];
+                    let b = a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&-&a + &-&b, zero);
+                    assert_eq!(&a + &-&b, zero);
+                    assert_eq!(&-&a + &-&b, zero);
+                }
+            }
+
+            mod large_values_4096 {
+                use super::*;
+                const LHS: [DigitT; 64] = [
+                    26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94,
+                    52, 46, 73, 72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21,
+                    75, 13, 96, 25, 62, 0, 23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60,
+                    55, 81, 87, 2,
+                ];
+                const RHS: [DigitT; 64] = [
+                    48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41,
+                    0, 42, 89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36,
+                    23, 90, 25, 74, 57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, 70,
+                    22, 80, 26, 18,
+                ];
+
+                #[test]
+                fn same_signs() {
+                    let a = MPint::new(<Vec<u64>>::from(LHS));
+                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    test_addition_correctness(a.clone(), b.clone());
+                    test_addition_correctness(-a, -b);
+                }
+                #[test]
+                fn diff_signs() {
+                    let a = MPint::new(<Vec<u64>>::from(LHS));
+                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    test_addition_correctness(a.clone(), -&b); //a + -b
+                    test_addition_correctness(-&a, b.clone()); //-a + b
+                    test_addition_correctness(b.clone(), -&a); // b + -a
+                    test_addition_correctness(-b, a); //-b + a
+                }
+            }
+        }
+
+        /// Verifies the result of the arithmetic operation, defined by the given
+        /// parameters, using an external python script (`mpint_test_helper`).
+        ///
+        /// # Arguments
+        /// - `lhs` - Left-hand side operand.
+        /// - `op` - Operator.
+        /// - `rhs` - Right-hand side operand.
+        /// - `res_to_verify` - The result to verify against python's calculations.
+        fn verify_arithmetic_result(
+            lhs: &MPint,
+            op: Op,
+            rhs: &MPint,
+            res_to_verify: &MPint,
+        ) -> (bool, String) {
+            // We will import ".../src/mpint_test_helper.py"
+            let project_root = std::env::current_dir().unwrap();
+            let py_mod_path = project_root.join("src");
+            let py_module_dir = py_mod_path.to_str();
+            let py_module_name = "mpint_test_helper";
+
+            // Init pyo3
+            pyo3::prepare_freethreaded_python();
+            let py_result = Python::with_gil(move |py| -> Result<(bool, String), PyErr> {
+                // Add .py file's dir to sys.path list
+                let sys_path = py.import_bound("sys")?.getattr("path")?;
+                let sys_path: &Bound<'_, PyList> = sys_path.downcast()?;
+                sys_path.append(py_module_dir)?;
+
+                // For this to work build.rs is setup to copy the `.py` to the target dir
+                let test_helper = py.import_bound(py_module_name)?;
+
+                let fn_name = "test_operation_result";
+                let args = (
+                    lhs.to_hex_string(),
+                    op.to_str(),
+                    rhs.to_hex_string(),
+                    res_to_verify.to_hex_string(),
+                    16, //base of the number strings
+                );
+                let test_result: (bool, String) =
+                    test_helper.getattr(fn_name)?.call1(args)?.extract()?;
+
+                Ok(test_result)
+            });
+
+            py_result.unwrap()
         }
     }
 }

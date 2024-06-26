@@ -3,9 +3,24 @@ use std::f64::consts::{LOG10_2, LOG2_10};
 use std::fmt::Display;
 use std::ops::{Div, Rem};
 
+pub enum Op {
+    PLUS,
+    MINUS,
+    MULT,
+}
+impl Op {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Op::PLUS => "+",
+            Op::MINUS => "-",
+            Op::MULT => "*",
+        }
+    }
+}
+
 /// Basically a full adder for `u64`
 ///
-/// ## Explanation
+/// # Explanation
 /// - Adding `lhs` to `rhs` can _at most_ have a result of `2^64 + 2^64-1`.
 ///     - This is similar to "carry-bit + `u64::MAX-1`"
 /// - If the `carry` input was provided, the total maximum sum will then at
@@ -58,7 +73,7 @@ pub fn dec_to_bit_width(dec_width: usize) -> usize {
 
 ///
 /// Parses given decimal digits string into a vector of digits.
-/// ## Returns
+/// # Returns
 /// - On Success: `Ok(Vec<u8>)` containing the parsed digits
 /// - `Err` when a non-digit byte was encountered
 ///
