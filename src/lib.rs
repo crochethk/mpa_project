@@ -605,7 +605,6 @@ pub mod mp_int {
         };
     }
 
-    #[allow(warnings)]
     #[cfg(test)]
     mod mpint_tests {
         use pyo3::prelude::*;
@@ -893,6 +892,69 @@ pub mod mp_int {
                     test_addition_correctness(-a, b);
                 }
             }
+
+            mod zero_result {
+                use super::*;
+                #[test]
+                fn plus_minus_max() {
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
+                    let b = -a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&b + &a, zero);
+                }
+                #[test]
+                fn normal_values() {
+                    let a = mpint![630, 801, 366, 345, 372];
+                    let b = -a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&b + &a, zero);
+                }
+                #[test]
+                fn both_zero() {
+                    let a = mpint![0, 0, 0];
+                    let b = a.clone();
+                    let zero = MPint::new(&a);
+                    assert_eq!(&a + &b, zero);
+                    assert_eq!(&-&a + &-&b, zero);
+                    assert_eq!(&a + &-&b, zero);
+                    assert_eq!(&-&a + &-&b, zero);
+                }
+            }
+
+            mod large_values_4096 {
+                use super::*;
+                const LHS: [DigitT; 64] = [
+                    26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94,
+                    52, 46, 73, 72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21,
+                    75, 13, 96, 25, 62, 0, 23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60,
+                    55, 81, 87, 2,
+                ];
+                const RHS: [DigitT; 64] = [
+                    48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41,
+                    0, 42, 89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36,
+                    23, 90, 25, 74, 57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, 70,
+                    22, 80, 26, 18,
+                ];
+
+                #[test]
+                fn same_signs() {
+                    let a = MPint::new(<Vec<u64>>::from(LHS));
+                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    test_addition_correctness(a.clone(), b.clone());
+                    test_addition_correctness(-a, -b);
+                }
+                #[test]
+                fn diff_signs() {
+                    let a = MPint::new(<Vec<u64>>::from(LHS));
+                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    test_addition_correctness(a.clone(), -&b); //a + -b
+                    test_addition_correctness(-&a, b.clone()); //-a + b
+                    test_addition_correctness(b.clone(), -&a); // b + -a
+                    test_addition_correctness(-b, a); //-b + a
+                }
+            }
         }
 
         /// Verifies the result of the arithmetic operation, defined by the given
@@ -921,7 +983,7 @@ pub mod mp_int {
                 // Add .py file's dir to sys.path list
                 let sys_path = py.import_bound("sys")?.getattr("path")?;
                 let sys_path: &Bound<'_, PyList> = sys_path.downcast()?;
-                sys_path.append(py_module_dir);
+                sys_path.append(py_module_dir)?;
 
                 // For this to work build.rs is setup to copy the `.py` to the target dir
                 let test_helper = py.import_bound(py_module_name)?;
