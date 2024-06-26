@@ -379,7 +379,7 @@ pub mod mp_int {
             self.assert_same_width(rhs);
 
             let mut sum;
-            let mut carry: bool = false;
+            let mut _carry: bool = false;
 
             let same_sign = self.sign == rhs.sign;
             if !same_sign {
@@ -402,18 +402,19 @@ pub mod mp_int {
                 }
             } else {
                 // operands have same sign
-                (sum, carry) = self.carry_ripple_add_bins(rhs);
+                (sum, _carry) = self.carry_ripple_add_bins(rhs);
                 if self.is_negative() {
                     sum.sign = Sign::Neg;
                 }
             }
 
-            // TODO Reevaluate whether panic on overflow is desirable
-            // Overflow can only ever occur, when both signs were equal, since
-            // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
-            //
-            // I.e.: `(same_sign && carry) => overflow`
-            assert!(!carry, "MPint::Add resulted in overflow");
+            // TODO If panic on overflow is desirable, implement other "wrapping_add" variants
+            // TODO since overflow is ok e.g. when calculating two's complement.
+            // // Overflow can only ever occur, when both signs were equal, since
+            // // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
+            // //
+            // // I.e.: `(same_sign && carry) => overflow`
+            // // assert!(!carry, "MPint::Add resulted in overflow");
             sum
         }
     }
