@@ -292,10 +292,20 @@ pub mod mp_int {
         /// Calculates the two's complement of the given number.
         /// Note that the result will have an _inverted sign_.
         fn twos_complement(&self) -> MPint {
-            let mut twos_comp = !(self);
-            twos_comp += 1;
-            twos_comp.sign = !twos_comp.sign;
-            twos_comp
+            self.clone().twos_complement_inplace()
+        }
+
+        /// Calculates the two's complement of the given number.
+        /// Note that the result will have an _inverted sign_.
+        fn twos_complement_inplace(mut self) -> MPint {
+            self = !(self);
+            let result_sign = !self.sign;
+            // Following necessary b/co of how add works (neg. self would recurse infinitely)
+            self.sign = Sign::Pos;
+            self += 1;
+
+            self.sign = result_sign;
+            self
         }
 
         fn assert_same_width(&self, rhs: &MPint) {
@@ -471,14 +481,22 @@ pub mod mp_int {
 
     impl Not for &MPint {
         type Output = MPint;
-
         /// Inverts all bits, i.e. performs bitwise "not" (`!`).
         fn not(self) -> Self::Output {
-            let mut result = MPint::new(self);
-            for (i, d) in self.iter().enumerate() {
-                result[i] = !d;
+            !self.clone()
+        }
+    }
+
+    impl Not for MPint {
+        type Output = Self;
+
+        /// Inverts all bits, i.e. performs bitwise "not" (`!`).
+        fn not(mut self) -> Self::Output {
+            for i in 0..self.len() {
+                let d = self[i];
+                self[i] = !d;
             }
-            result
+            self
         }
     }
 
