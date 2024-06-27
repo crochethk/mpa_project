@@ -580,28 +580,6 @@ pub mod mp_int {
         }
     }
 
-    /// Implementations for often used integer values
-    macro_rules! impl_common_val {
-        ($value_name:ident as $val:literal) => {
-            impl MPint {
-                #[doc = concat!("Creates new instance representing `", $val, "`.")]
-                pub fn $value_name(width: usize) -> Self {
-                    let mut result = Self::new(width);
-
-                    let sign = if $val < 0 { Sign::Neg } else { Sign::Pos };
-                    result.sign = sign;
-
-                    result.data[0] = $val;
-                    result
-                }
-            }
-        };
-    }
-
-    impl_common_val!(one as 1);
-    impl_common_val!(two as 2);
-    impl_common_val!(ten as 10);
-
     /// Shorthand macro for `MPint::new(vec![...])` that creates `MPint` from a
     /// list of digits, similar to `vec![1,2,3]`.
     /// Digits are expected to start with the least significant.
