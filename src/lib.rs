@@ -242,27 +242,25 @@ pub mod mp_int {
                 }
             };
 
-            let mut result = Self::new(width);
-
             // Build digits by applying Horner-Schema
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
+            let mut res1 = Self::new(width);
             for d in digits {
-                let mut r1 = result.clone();
-                let mut r2 = result.clone();
+                let mut res2 = res1.clone();
 
                 // Multiply by 10:
                 // (2*2*2*x + 2*x == 10*x)
-                r1 <<= 3;
-                r2 <<= 1;
-                result = &r1 + &r2;
+                res1 <<= 3;
+                res2 <<= 1;
+                res1 += res2;
 
-                result += d as DigitT; // result = result + (d as DigitT);
+                res1 += d as DigitT; // result = result + (d as DigitT);
             }
 
-            result.sign = sign;
-            Ok(result)
+            res1.sign = sign;
+            Ok(res1)
         }
 
         /// Binary string, starting with MSB, ending with LSB on the right.
