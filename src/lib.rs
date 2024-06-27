@@ -110,7 +110,7 @@ pub mod mp_int {
         ///
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
         fn new(width: usize) -> Self {
-            let bin_count = width.div_ceil(DIGIT_BITS as usize);
+            let bin_count = Self::width_to_bins_count(width);
             let data = vec![0; bin_count];
             Self::new(data)
         }
@@ -139,6 +139,37 @@ pub mod mp_int {
     }
 
     impl MPint {
+        /// Tries to trim `self` to the specified width.
+        /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
+        ///
+        /// `Err(self)` containing the untouched instance is returned, if non-zero
+        /// bins had to be dropped to meet the desired `target_width`.
+        pub fn try_set_width(mut self, target_width: usize) -> Result<Self, Self> {
+            let new_bins_count = Self::width_to_bins_count(target_width);
+            let new_width = new_bins_count * DIGIT_BITS as usize;
+
+            if new_width == self.width {
+                return Ok(self);
+            } else if new_width > self.width {
+                let mut tail = vec![0; new_bins_count - self.data.len()];
+                self.data.append(&mut tail);
+            } else {
+                // Check whether tail is empty
+                for i in (new_bins_count..self.data.len()).rev() {
+                    if self.data[i] != 0 {
+                        return Err(self);
+                    }
+                }
+                self.data.truncate(new_bins_count);
+            }
+            self.width = new_width;
+            Ok(self)
+        }
+
+        fn width_to_bins_count(width: usize) -> usize {
+            width.div_ceil(DIGIT_BITS as usize)
+        }
+
         /// Calculates quotient and remainder using the given _native_ integer
         /// divisor.
         ///
@@ -617,6 +648,97 @@ pub mod mp_int {
         use crate::utils::Op;
 
         const D_MAX: DigitT = DigitT::MAX;
+
+        mod test_try_set_width {
+            use super::*;
+
+            #[test]
+            fn no_change() {
+                let num = mpint![1, 2, 3];
+                let expect = Ok(mpint![1, 2, 3]);
+
+                let result = num.clone().try_set_width(192);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(177);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(129);
+                assert_eq!(result, expect.clone());
+            }
+
+            #[test]
+            fn trim_err_1() {
+                let num = mpint![1, 2, 3];
+                let expect = Err(num.clone());
+
+                let result = num.clone().try_set_width(128);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(96);
+                assert_eq!(result, expect.clone());
+            }
+
+            #[test]
+            fn trim_err_2() {
+                let num = mpint![1, 2, 3, 0];
+                let expect = Err(num.clone());
+
+                let result = num.clone().try_set_width(128);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(96);
+                assert_eq!(result, expect.clone());
+            }
+
+            #[test]
+            fn truncate_1() {
+                let num = mpint![1, 2, 3, 0];
+                let expect = Ok(mpint![1, 2, 3]);
+
+                let result = num.clone().try_set_width(192);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(129);
+                assert_eq!(result, expect.clone());
+            }
+
+            #[test]
+            fn truncate_2() {
+                let num = mpint![1, 2, 3, 0, 0, 0];
+                let expect = Ok(mpint![1, 2, 3, 0]);
+
+                let result = num.clone().try_set_width(256);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(222);
+                assert_eq!(result, expect.clone());
+
+                let result = num.clone().try_set_width(193);
+                assert_eq!(result, expect.clone());
+            }
+
+            #[test]
+            fn extend_1() {
+                let num = mpint![1, 2];
+                let result = num.try_set_width(129);
+                let expect = Ok(mpint![1, 2, 0]);
+                assert_eq!(result, expect);
+            }
+
+            #[test]
+            fn extend_2() {
+                let num = mpint![1, 2, 0];
+                let result = num.clone().try_set_width(4096);
+
+                let mut expect = MPint::new(vec![0; 64]);
+                expect[0] = num[0];
+                expect[1] = num[1];
+                expect[2] = num[2];
+
+                assert_eq!(result, Ok(expect));
+            }
+        }
 
         mod test_to_hex_string {
             use super::*;
