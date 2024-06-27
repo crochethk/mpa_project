@@ -16,7 +16,7 @@ pub mod mp_int {
     /// Type of elements representing individual digits. Directly related to the
     /// `const DIGIT_BITS`.
     /// __DO NOT CHANGE WITHOUT CAUTION__
-    type DigitT = u64;
+    pub type DigitT = u64;
 
     /// Number of bits used per digit in the internal number system.
     /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
@@ -242,27 +242,25 @@ pub mod mp_int {
                 }
             };
 
-            let mut result = Self::new(width);
-
             // Build digits by applying Horner-Schema
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
+            let mut res1 = Self::new(width);
             for d in digits {
-                let mut r1 = result.clone();
-                let mut r2 = result.clone();
+                let mut res2 = res1.clone();
 
                 // Multiply by 10:
                 // (2*2*2*x + 2*x == 10*x)
-                r1 <<= 3;
-                r2 <<= 1;
-                result = &r1 + &r2;
+                res1 <<= 3;
+                res2 <<= 1;
+                res1 += res2;
 
-                result += d as DigitT; // result = result + (d as DigitT);
+                res1 += d as DigitT; // result = result + (d as DigitT);
             }
 
-            result.sign = sign;
-            Ok(result)
+            res1.sign = sign;
+            Ok(res1)
         }
 
         /// Binary string, starting with MSB, ending with LSB on the right.
@@ -289,15 +287,6 @@ pub mod mp_int {
             self.sign == Sign::Neg
         }
 
-        /// Calculates the two's complement of the given number.
-        /// Note that the result will have an _inverted sign_.
-        fn twos_complement(&self) -> MPint {
-            let mut twos_comp = !(self);
-            twos_comp += 1;
-            twos_comp.sign = !twos_comp.sign;
-            twos_comp
-        }
-
         fn assert_same_width(&self, rhs: &MPint) {
             assert_eq!(self.width, rhs.width, "operands must have equal widths");
         }
@@ -314,21 +303,6 @@ pub mod mp_int {
                 .fold(hex, |acc, d| acc + &format!("{:0width$X} ", d, width = X_WIDTH));
             hex.trim_end_in_place();
             hex
-        }
-
-        /// Helper function. Adds two number's bins with carry.
-        /// Note that this **ignores sign**.
-        fn carry_ripple_add_bins(&self, other: &MPint) -> (MPint, bool) {
-            let mut sum = MPint::new(self);
-            let mut carry = false;
-
-            for i in 0..other.len() {
-                let digit: DigitT;
-                (digit, carry) = add_with_carry(self[i], other[i], carry);
-                sum[i] = digit;
-            }
-
-            (sum, carry)
         }
 
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
@@ -362,50 +336,117 @@ pub mod mp_int {
         fn is_zero(&self) -> bool {
             self.data.iter().all(|d| *d == 0)
         }
-    }
 
-    impl AddAssign<DigitT> for MPint {
-        // inplace `+=` operator
-        fn add_assign(&mut self, rhs: DigitT) {
-            *self = &*self + &Self::from_digit(rhs, self.width);
+        /// Calculates the two's complement of the given number.
+        /// Note that the result will have an _inverted sign_.
+        fn twos_complement_inplace(&mut self) {
+            _ = self.not();
+            let result_sign = !self.sign;
+            // Following necessary b/co of how add works (neg. self would recurse infinitely)
+            self.sign = Sign::Pos;
+            *self += 1;
+
+            self.sign = result_sign;
+        }
+
+        /// Helper function.
+        /// Adds two number's bins and returns whether the most significant bin produced a carry.
+        /// Note that **`self` keeps its sign**, regardless of `other`'s sign.
+        fn carry_ripple_add_bins_inplace(&mut self, other: &MPint) -> bool {
+            let mut carry = false;
+
+            for i in 0..other.len() {
+                let digit: DigitT;
+                (digit, carry) = add_with_carry(self[i], other[i], carry);
+                self[i] = digit;
+            }
+            carry
         }
     }
 
-    /// !untested
+    impl Not for &mut MPint {
+        type Output = Self;
+        /// Inverts all bits, i.e. performs bitwise "not" (`!`).
+        fn not(self) -> Self::Output {
+            for i in 0..self.len() {
+                let d = self[i];
+                self[i] = !d;
+            }
+            self
+        }
+    }
+
+    impl Neg for &MPint {
+        type Output = MPint;
+        /// Performs the unary - operation.
+        fn neg(self) -> Self::Output {
+            -(self.clone())
+        }
+    }
+    impl Neg for MPint {
+        type Output = MPint;
+        // "Consuming" negation operation (`-self`)
+        fn neg(mut self) -> Self::Output {
+            self.sign = !self.sign;
+            self
+        }
+    }
+
     impl Add for &MPint {
         type Output = MPint;
-
         fn add(self, rhs: Self) -> Self::Output {
-            self.assert_same_width(rhs);
+            let mut sum = self.clone();
+            sum += rhs.clone();
+            sum
+        }
+    }
 
-            let mut sum;
+    impl AddAssign<DigitT> for MPint {
+        /// Inplace `+=` operator for `DigitT` right-hand side.
+        fn add_assign(&mut self, rhs: DigitT) {
+            *self += Self::from_digit(rhs, self.width);
+        }
+    }
+
+    impl AddAssign for MPint {
+        fn add_assign(&mut self, mut rhs: Self) {
+            self.assert_same_width(&rhs);
+            let rhs = &mut rhs;
+
             let mut _carry: bool = false;
 
             let same_sign = self.sign == rhs.sign;
             if !same_sign {
                 // Order operands
+                let pos_is_self;
                 let (pos, neg) = if self.sign >= rhs.sign {
+                    pos_is_self = true;
                     (self, rhs)
                 } else {
+                    pos_is_self = false;
                     (rhs, self)
                 };
 
                 let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
 
-                let neg = neg.twos_complement();
+                neg.twos_complement_inplace();
 
+                // Add `rhs` to `self`.
                 // Meaningful carry only ever possible with same signs.
-                (sum, _) = pos.carry_ripple_add_bins(&neg);
+                let sum = if pos_is_self {
+                    _ = pos.carry_ripple_add_bins_inplace(&neg);
+                    pos
+                } else {
+                    _ = neg.carry_ripple_add_bins_inplace(&pos);
+                    neg
+                };
 
                 if pos_lt_neg {
-                    sum = sum.twos_complement(); // sign is switched here
+                    sum.twos_complement_inplace(); // sign is switched here
                 }
             } else {
                 // operands have same sign
-                (sum, _carry) = self.carry_ripple_add_bins(rhs);
-                if self.is_negative() {
-                    sum.sign = Sign::Neg;
-                }
+                _carry = self.carry_ripple_add_bins_inplace(&rhs);
             }
 
             // TODO If panic on overflow is desirable, implement other "wrapping_add" variants
@@ -415,7 +456,6 @@ pub mod mp_int {
             // //
             // // I.e.: `(same_sign && carry) => overflow`
             // // assert!(!carry, "MPint::Add resulted in overflow");
-            sum
         }
     }
 
@@ -469,19 +509,6 @@ pub mod mp_int {
         }
     }
 
-    impl Not for &MPint {
-        type Output = MPint;
-
-        /// Inverts all bits, i.e. performs bitwise "not" (`!`).
-        fn not(self) -> Self::Output {
-            let mut result = MPint::new(self);
-            for (i, d) in self.iter().enumerate() {
-                result[i] = !d;
-            }
-            result
-        }
-    }
-
     /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
     impl PartialOrd for MPint {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -515,23 +542,6 @@ pub mod mp_int {
             }
 
             Some(self_other_cmp)
-        }
-    }
-
-    impl Neg for &MPint {
-        type Output = MPint;
-
-        fn neg(self) -> Self::Output {
-            -(self.clone())
-        }
-    }
-
-    impl Neg for MPint {
-        type Output = MPint;
-        // "Consuming" negation operation (`-self`)
-        fn neg(mut self) -> Self::Output {
-            self.sign = !self.sign;
-            self
         }
     }
 
@@ -646,7 +656,7 @@ pub mod mp_int {
             #[test]
             fn negative_values() {
                 {
-                    let a = -&mpint![0, D_MAX, 2, 3];
+                    let a = -mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "-",
                         "0000000000000003 ",
@@ -657,13 +667,13 @@ pub mod mp_int {
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = -&mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
+                    let a = -mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
                     let expected =
                         concat!("-", "8000000000000000 ", "0000000000002000 ", "000000000000002A",);
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
-                    let a = -&mpint![D_MAX, D_MAX, D_MAX];
+                    let a = -mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
                         concat!("-", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
@@ -709,31 +719,31 @@ pub mod mp_int {
                 // abs(a) > abs(b) and abs(b) < abs(a)
                 {
                     let (a, b) = (mpint![1, 42], mpint![9, 1]);
-                    let (a, b) = (-&a, -&b);
+                    let (a, b) = (-a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                     assert_eq!(b.partial_cmp(&a), Some(Greater));
                 }
                 {
                     let (a, b) = (mpint![0, 99, 5, 17], mpint![99, 16, 5, 17]);
-                    let (a, b) = (-&a, -&b);
+                    let (a, b) = (-a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                     assert_eq!(b.partial_cmp(&a), Some(Greater));
                 }
                 {
                     let (a, b) = (mpint![4, 3, 42, 0], mpint![1, 3, 42, 0]);
-                    let (a, b) = (-&a, -&b);
+                    let (a, b) = (-a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                     assert_eq!(b.partial_cmp(&a), Some(Greater));
                 }
                 // abs(a) == abs(b)
                 {
                     let (a, b) = (mpint![9, 16, 5, 17], mpint![9, 16, 5, 17]);
-                    let (a, b) = (-&a, -&b);
+                    let (a, b) = (-a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Equal));
                 }
                 {
                     let (a, b) = (mpint![0, 42, 0, 0, 0, 0, 1], mpint![0, 42, 0, 0, 0, 0, 1]);
-                    let (a, b) = (-&a, -&b);
+                    let (a, b) = (-a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Equal));
                 }
             }
@@ -743,34 +753,34 @@ pub mod mp_int {
                 // abs(a) > abs(b)
                 {
                     let (a, b) = (mpint![0, 0, 42], mpint![1, 2, 3]);
-                    let (a, b) = (a, -&b);
+                    let (a, b) = (a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Greater));
                 }
                 {
                     let (a, b) = (mpint![0, 0, 42], mpint![1, 2, 3]);
-                    let (a, b) = (-&a, b);
+                    let (a, b) = (-a, b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                 }
                 // abs(a) < abs(b)
                 {
                     let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 42]);
-                    let (a, b) = (a, -&b);
+                    let (a, b) = (a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Greater));
                 }
                 {
                     let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 42]);
-                    let (a, b) = (-&a, b);
+                    let (a, b) = (-a, b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                 }
                 // abs(a) == abs(b)
                 {
                     let (a, b) = (mpint![42, 42, 42, 42], mpint![42, 42, 42, 42]);
-                    let (a, b) = (a, -&b);
+                    let (a, b) = (a, -b);
                     assert_eq!(a.partial_cmp(&b), Some(Greater));
                 }
                 {
                     let (a, b) = (mpint![42, 42, 42, 42], mpint![42, 42, 42, 42]);
-                    let (a, b) = (-&a, b);
+                    let (a, b) = (-a, b);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                 }
             }
