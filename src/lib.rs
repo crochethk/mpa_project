@@ -9,7 +9,7 @@ pub mod mp_int {
         cmp::Ordering,
         fmt::Display,
         mem::size_of,
-        ops::{Add, AddAssign, Div, Index, IndexMut, Neg, Not, Rem, ShlAssign},
+        ops::{Add, AddAssign, Div, Index, IndexMut, Neg, Not, Rem, ShlAssign, Sub, SubAssign},
         slice::Iter,
     };
 
@@ -389,6 +389,21 @@ pub mod mp_int {
         fn neg(mut self) -> Self::Output {
             self.sign = !self.sign;
             self
+        }
+    }
+
+    impl Sub for &MPint {
+        type Output = MPint;
+        fn sub(self, rhs: Self) -> Self::Output {
+            let mut diff = self.clone();
+            diff -= rhs.clone();
+            diff
+        }
+    }
+
+    impl SubAssign for MPint {
+        fn sub_assign(&mut self, rhs: Self) {
+            *self += -rhs;
         }
     }
 
