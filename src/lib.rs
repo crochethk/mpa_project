@@ -535,9 +535,9 @@ pub mod mp_int {
             // Matrix with: "digits_count" rows and "2*digits" columns
             let mut prod_rows = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
 
-            // `prod_carries[i][j]` represents the carry resulting from multiplying the i-th digit
-            // of one factor by the j-th digit of the other factor. This carry must then be
-            // added to the (j+1)-th digit of the end result.
+            // `prod_carries[i][j]` represents the carry, which resulted from multiplying the i-th digit
+            // of one factor by the (j-1)-th digit of the other factor. This carry must then be added to
+            // the j-th digit of the end result.
             // First column of carries is always zero.
             let mut prod_carries = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
 
