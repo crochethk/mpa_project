@@ -17,6 +17,8 @@ pub mod mp_int {
     /// `const DIGIT_BITS`.
     /// __DO NOT CHANGE WITHOUT CAUTION__
     pub type DigitT = u64;
+    /// Type double the width of `DigitT`, sometimes needed for intermediary results
+    type DoubleDigitT = u128;
 
     /// Number of bits used per digit in the internal number system.
     /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
@@ -198,11 +200,11 @@ pub mod mp_int {
         pub fn div_with_rem(&self, divisor: DigitT) -> (Self, i128) {
             let mut quotient = Self::new(self);
 
-            let divisor = divisor as u128;
-            let mut last_r = 0u128;
+            let divisor = divisor as DoubleDigitT;
+            let mut last_r = 0 as DoubleDigitT;
             // Start with most significant digit
             for (i, d) in self.iter().rev().enumerate() {
-                let d = *d as u128;
+                let d = *d as DoubleDigitT;
                 // "Prefix" d with last_r (multiplies last_r by `2^digit_bits`)
                 let dividend = (last_r << DIGIT_BITS) + d;
 
