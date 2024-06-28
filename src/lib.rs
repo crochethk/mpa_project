@@ -507,6 +507,94 @@ pub mod mp_int {
         }
     }
 
+    impl MPint {
+        /// Multiplies two `MPint`, extending the width to as necessary.
+        pub fn extending_mul(&self, rhs: &Self) -> Self {
+            self.assert_same_width(rhs);
+
+            // Zero short circuit
+            if self.is_zero() {
+                return self.clone();
+            } else if rhs.is_zero() {
+                return rhs.clone();
+            }
+
+            let result_sign = if self.sign == rhs.sign {
+                // same signs implicate positive result
+                Sign::Pos
+            } else {
+                // different signs implicate negative result
+                Sign::Neg
+            };
+            let max_new_width = self.width * 2;
+
+            // Given `a*b = a0..an * b0..bn` where `a0..an` and `b0..bn` are the digits of the factors.
+            // Each row of following matrices represents the multiplication of a digit of one factor
+            // with each digit of the other factor, with offset of the first factors digit-position.
+
+            // Matrix with: "digits_count" rows and "2*digits" columns
+            let mut prod_rows = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
+
+            // `prod_carries[i][j]` represents the carry resulting from multiplying the i-th digit
+            // of one factor by the j-th digit of the other factor. This carry must then be
+            // added to the (j+1)-th digit of the end result.
+            // First column of carries is always zero.
+            let mut prod_carries = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
+
+            for i in 0..prod_rows.len() {
+                let b_i = rhs[i] as DoubleDigitT;
+
+                for j in 0..self.len() {
+                    let a_j = self[j] as DoubleDigitT;
+                    let prod_ij = a_j * b_i;
+
+                    prod_rows[i][j + i] = prod_ij as DigitT;
+                    prod_carries[i][j + i + 1] = (prod_ij >> DIGIT_BITS) as DigitT;
+                }
+            }
+
+            // Sum columns
+
+            let mut end_product = MPint::new(max_new_width);
+            let mut col_carry = 0 as DigitT;
+            for j in 0..prod_rows[0].len() {
+                // Add last columns carry
+                end_product += col_carry;
+
+                for i in 0..prod_rows.len() {
+                    col_carry = end_product.carry_ripple_add_bins_inplace(&MPint::from_digit(
+                        prod_rows[i][j],
+                        max_new_width,
+                    )) as u64;
+
+                    col_carry += end_product.carry_ripple_add_bins_inplace(&MPint::from_digit(
+                        prod_carries[i][j],
+                        max_new_width,
+                    )) as u64;
+                }
+
+                // Make sure next column is added to the correct position of the number system
+                end_product.data.rotate_left(1);
+            }
+
+            // trim end if was extended
+            if end_product.width > self.width {
+                // Get first non-zero digit index from the end
+                let mut fist_non_zero = 0;
+                for (i, d) in end_product.iter().enumerate().rev() {
+                    if *d != 0 {
+                        fist_non_zero = i;
+                        break;
+                    }
+                }
+                end_product.data.truncate(fist_non_zero + 1);
+            }
+
+            end_product.sign = result_sign;
+            end_product
+        }
+    }
+
     /// `/` Operator for `DigitT` divisor
     impl Div<DigitT> for &MPint {
         type Output = MPint;
@@ -911,6 +999,94 @@ pub mod mp_int {
                 assert_eq!(z_pos1.partial_cmp(&z_neg1), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
+            }
+        }
+
+        mod test_mult_prototype {
+            use super::*;
+            const OP: Op = Op::MULT;
+
+            fn test_extending_mul_correctness(a: MPint, b: MPint) {
+                let result = &a.extending_mul(&b);
+                let test_result = verify_arithmetic_result(&a, OP, &b, &result);
+                println!("{:?}", test_result);
+                assert!(test_result.0, "{}", test_result.1);
+            }
+
+            #[test]
+            fn both_factors_pos_1() {
+                let a = mpint![9, 8, 7];
+                let b = mpint![100, 10, 1];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn both_factors_pos_2() {
+                let a = mpint![0, 9, 8, 7, 6, 0];
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn both_factors_neg_1() {
+                let a = -mpint![9, 8, 7];
+                let b = -mpint![100, 10, 1];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn both_factors_neg_2() {
+                let a = -mpint![0, 9, 8, 7, 6, 0];
+                let b = -mpint![100, 10, 1, 0, 0, 0];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn pos_neg_factors_1() {
+                let a = -mpint![9, 8, 7];
+                let b = mpint![100, 10, 1];
+                test_extending_mul_correctness(a, b);
+                let a = mpint![9, 8, 7];
+                let b = -mpint![100, 10, 1];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn pos_neg_factors_2() {
+                let a = -mpint![0, 9, 8, 7, 6, 0];
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                test_extending_mul_correctness(a, b);
+                let a = mpint![0, 9, 8, 7, 6, 0];
+                let b = -mpint![100, 10, 1, 0, 0, 0];
+                test_extending_mul_correctness(a, b);
+            }
+
+            #[test]
+            fn zero_factor() {
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                let a = MPint::from_digit(0, b.width);
+                test_extending_mul_correctness(a, b);
+                let a = mpint![0, 9, 8, 7, 6, 0];
+                let b = MPint::from_digit(0, a.width);
+                test_extending_mul_correctness(a, b);
+            }
+            #[test]
+            fn one_factor() {
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                let a = MPint::from_digit(1, b.width);
+                test_extending_mul_correctness(a.clone(), b.clone());
+                let c = mpint![0, 9, 8, 7, 6, 0];
+                let d = MPint::from_digit(1, c.width);
+                test_extending_mul_correctness(c.clone(), d.clone());
+                test_extending_mul_correctness(-a, b);
+                test_extending_mul_correctness(c, -d);
+            }
+
+            #[test]
+            fn large_factors_1() {
+                let a = MPint::new(vec![D_MAX; 32]);
+                let b = a.clone();
+                test_extending_mul_correctness(a, b);
             }
         }
 
