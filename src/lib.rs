@@ -758,6 +758,28 @@ pub mod mp_int {
 
         const D_MAX: DigitT = DigitT::MAX;
 
+        /// Generates a function that tests correctness of the specified arithmetic
+        /// operation on `MPint` objects.
+        /// # Rules
+        /// - `create_op_correctness_tester($fn_name, $op)`
+        ///     - `$fn_name` - The created function's name.
+        ///     - `$op` - An operator token (e.g. `+`). Must have a corresponding `utils::Op`.
+        /// # Examples
+        /// ```rust
+        /// create_op_correctness_tester!(test_addition_correctness, +);
+        /// ```
+        macro_rules! create_op_correctness_tester {
+            ($fn_name:ident, $op:tt) => {
+                fn $fn_name(a: MPint, b: MPint) {
+                    let result = &a $op &b;
+                    let test_result = verify_arithmetic_result(
+                        &a, stringify!($op).try_into().unwrap(), &b, &result);
+                    println!("{:?}", test_result);
+                    assert!(test_result.0, "{}", test_result.1);
+                }
+            };
+        }
+
         mod test_try_set_width {
             use super::*;
 
@@ -1023,14 +1045,7 @@ pub mod mp_int {
 
         mod test_mul {
             use super::*;
-            const OP: Op = Op::MULT;
-
-            fn test_mul_correctness(a: MPint, b: MPint) {
-                let result = &a.mul(&b);
-                let test_result = verify_arithmetic_result(&a, OP, &b, &result);
-                println!("{:?}", test_result);
-                assert!(test_result.0, "{}", test_result.1);
-            }
+            create_op_correctness_tester!(test_mul_correctness, *);
 
             #[test]
             fn both_factors_pos_1() {
@@ -1131,14 +1146,8 @@ pub mod mp_int {
 
         mod test_add {
             use super::*;
-            const OP: Op = Op::PLUS;
 
-            fn test_addition_correctness(a: MPint, b: MPint) {
-                let result = &a + &b;
-                let test_result = verify_arithmetic_result(&a, OP, &b, &result);
-                println!("{:?}", test_result);
-                assert!(test_result.0, "{}", test_result.1);
-            }
+            create_op_correctness_tester!(test_addition_correctness, +);
 
             mod same_signs {
                 use super::*;
@@ -1319,9 +1328,9 @@ pub mod mp_int {
                 let test_helper = py.import_bound(py_module_name)?;
 
                 let fn_name = "test_operation_result";
-                let args = (
+                let args: (String, &str, String, String, i32) = (
                     lhs.to_hex_string(),
-                    op.to_str(),
+                    op.into(),
                     rhs.to_hex_string(),
                     res_to_verify.to_hex_string(),
                     16, //base of the number strings
