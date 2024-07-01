@@ -9,7 +9,9 @@ pub mod mp_int {
         cmp::Ordering,
         fmt::Display,
         mem::size_of,
-        ops::{Add, AddAssign, Div, Index, IndexMut, Neg, Not, Rem, ShlAssign, Sub, SubAssign},
+        ops::{
+            Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
+        },
         slice::Iter,
     };
 
@@ -519,6 +521,16 @@ pub mod mp_int {
         }
     }
 
+    impl Mul for &MPint {
+        type Output = MPint;
+
+        /// Performs the `*` operation, potentially extending the bit-width. Therefore,
+        /// the result's width `w` will be in the range `self.width() ≤ w ≤ 2*self.width()`.
+        fn mul(self, rhs: Self) -> Self::Output {
+            self.extending_prod_scan_mul(rhs)
+        }
+    }
+
     impl MPint {
         /// Multiplies two `MPint`, extending the width as necessary.
         /// This uses a "Product-Scanning" approach, which means we directly
@@ -599,10 +611,6 @@ pub mod mp_int {
                 }
             }
             self.data.truncate((first_non_zero + 1).max(min_len));
-        }
-
-        pub fn extending_mul(&self, rhs: &Self) -> Self {
-            self.extending_prod_scan_mul(rhs)
         }
     }
 
@@ -1013,12 +1021,12 @@ pub mod mp_int {
             }
         }
 
-        mod test_mult_prototype {
+        mod test_mul {
             use super::*;
             const OP: Op = Op::MULT;
 
-            fn test_extending_mul_correctness(a: MPint, b: MPint) {
-                let result = &a.extending_mul(&b);
+            fn test_mul_correctness(a: MPint, b: MPint) {
+                let result = &a.mul(&b);
                 let test_result = verify_arithmetic_result(&a, OP, &b, &result);
                 println!("{:?}", test_result);
                 assert!(test_result.0, "{}", test_result.1);
@@ -1028,88 +1036,89 @@ pub mod mp_int {
             fn both_factors_pos_1() {
                 let a = mpint![9, 8, 7];
                 let b = mpint![100, 10, 1];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn both_factors_pos_2() {
                 let a = mpint![0, 9, 8, 7, 6, 0];
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn both_factors_neg_1() {
                 let a = -mpint![9, 8, 7];
                 let b = -mpint![100, 10, 1];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn both_factors_neg_2() {
                 let a = -mpint![0, 9, 8, 7, 6, 0];
                 let b = -mpint![100, 10, 1, 0, 0, 0];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn pos_neg_factors_1() {
                 let a = -mpint![9, 8, 7];
                 let b = mpint![100, 10, 1];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
                 let a = mpint![9, 8, 7];
                 let b = -mpint![100, 10, 1];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn pos_neg_factors_2() {
                 let a = -mpint![0, 9, 8, 7, 6, 0];
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
                 let a = mpint![0, 9, 8, 7, 6, 0];
                 let b = -mpint![100, 10, 1, 0, 0, 0];
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
 
             #[test]
             fn zero_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
                 let a = MPint::from_digit(0, b.width());
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
                 let a = mpint![0, 9, 8, 7, 6, 0];
                 let b = MPint::from_digit(0, a.width());
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
+
             #[test]
             fn one_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
                 let a = MPint::from_digit(1, b.width());
-                test_extending_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(a.clone(), b.clone());
 
                 assert_eq!(
-                    a.clone().extending_mul(&b),
+                    a.clone().mul(&b),
                     b.clone(),
                     "Result should exactly match 'not-one' operand"
                 );
                 assert_eq!(
-                    b.clone().extending_mul(&a),
+                    b.clone().mul(&a),
                     b.clone(),
                     "Result should exactly match 'not-one' operand"
                 );
 
                 let c = mpint![0, 9, 8, 7, 6, 0];
                 let d = MPint::from_digit(1, c.width());
-                test_extending_mul_correctness(c.clone(), d.clone());
-                test_extending_mul_correctness(-a, b);
-                test_extending_mul_correctness(c, -d);
+                test_mul_correctness(c.clone(), d.clone());
+                test_mul_correctness(-a, b);
+                test_mul_correctness(c, -d);
             }
 
             #[test]
             fn large_factors_1() {
                 let a = MPint::new(vec![D_MAX; 32]);
                 let b = a.clone();
-                test_extending_mul_correctness(a, b);
+                test_mul_correctness(a, b);
             }
         }
 
