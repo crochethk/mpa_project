@@ -21,8 +21,8 @@ pub mod mp_int {
     type DoubleDigitT = u128;
 
     /// Number of bits used per digit in the internal number system.
-    /// Must stay ≤64, else e.g. division will break, since we need "2*DIGIT_BITS"
-    /// for those calculations, while only ≤128bit are available "natively".
+    /// Must stay ≤64, since e.g. multiplication depends on "2*DIGIT_BITS" width
+    /// intermdiate results, while only ≤128bit are available "natively".
     const DIGIT_BITS: u32 = (size_of::<DigitT>() as u32) * 8;
 
     #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -574,6 +574,7 @@ pub mod mp_int {
                 }
 
                 // Prepare for easier partial product addition in next iteration.
+                // After last iteration, end_product has performed a full cycle.
                 end_product.rotate_digits_right(1);
             }
 
