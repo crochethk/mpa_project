@@ -77,14 +77,13 @@ pub mod mp_int {
 
     #[derive(Debug, Clone)]
     pub struct MPint {
-        width: usize,
         data: Vec<DigitT>,
         sign: Sign,
     }
 
     impl PartialEq for MPint {
         fn eq(&self, other: &Self) -> bool {
-            if self.width != other.width {
+            if self.len() != other.len() {
                 false
             } else if self.sign != other.sign {
                 // different signs only eq when both are 0
@@ -101,9 +100,9 @@ pub mod mp_int {
     }
 
     impl CreateNewFrom<&Self> for MPint {
-        /// Creates new instance of similar width. Shorthand for `new(src.width)`.
+        /// Creates new instance of similar width. Shorthand for `new(src.width())`.
         fn new(src: &Self) -> Self {
-            Self::new(src.width)
+            Self::new(src.width())
         }
     }
 
@@ -131,9 +130,7 @@ pub mod mp_int {
         /// - New instance of `MPint`, containing the given digits and an appropriate width.
         ///
         fn new(digits: Vec<DigitT>) -> Self {
-            let width = digits.len() * DIGIT_BITS as usize;
             Self {
-                width,
                 data: digits,
                 sign: Sign::default(),
             }
@@ -141,30 +138,35 @@ pub mod mp_int {
     }
 
     impl MPint {
-        /// Tries to trim `self` to the specified width.
-        /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
+        /// Retrieves this number's current bit-width.
+        pub fn width(&self) -> usize {
+            self.data.len() * (DIGIT_BITS as usize)
+        }
+
+        /// Tries to in-place extend or truncate `self` to the specified bit-width.
+        /// Useful e.g. to adjust an instance to a multiplication result.
         ///
+        /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
         /// `Err(self)` containing the untouched instance is returned, if non-zero
         /// bins had to be dropped to meet the desired `target_width`.
         pub fn try_set_width(mut self, target_width: usize) -> Result<Self, Self> {
             let new_bins_count = Self::width_to_bins_count(target_width);
-            let new_width = new_bins_count * DIGIT_BITS as usize;
+            let old_bins_count = self.data.len();
 
-            if new_width == self.width {
+            if new_bins_count == old_bins_count {
                 return Ok(self);
-            } else if new_width > self.width {
-                let mut tail = vec![0; new_bins_count - self.data.len()];
+            } else if new_bins_count > old_bins_count {
+                let mut tail = vec![0; new_bins_count - old_bins_count];
                 self.data.append(&mut tail);
             } else {
                 // Check whether tail is empty
-                for i in (new_bins_count..self.data.len()).rev() {
+                for i in (new_bins_count..old_bins_count).rev() {
                     if self.data[i] != 0 {
                         return Err(self);
                     }
                 }
                 self.data.truncate(new_bins_count);
             }
-            self.width = new_width;
             Ok(self)
         }
 
@@ -238,7 +240,7 @@ pub mod mp_int {
             num
         }
 
-        /// Creates new number with _at least_ `width` bits (see `new()`) using the given
+        /// Creates new number with _at least_ `width` bits using the given
         /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
         /// # Returns
@@ -321,7 +323,7 @@ pub mod mp_int {
         }
 
         fn assert_same_width(&self, rhs: &MPint) {
-            assert_eq!(self.width, rhs.width, "operands must have equal widths");
+            assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
         }
 
         pub fn to_hex_string(&self) -> String {
@@ -343,7 +345,7 @@ pub mod mp_int {
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
         /// - `None` when operands are incompatible.
         fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
-            if self.width != other.width {
+            if self.len() != other.len() {
                 return None;
             }
 
@@ -452,14 +454,14 @@ pub mod mp_int {
     impl AddAssign<DigitT> for MPint {
         /// Inplace `+=` operator for `DigitT` right-hand side.
         fn add_assign(&mut self, rhs: DigitT) {
-            *self += Self::from_digit(rhs, self.width);
+            *self += Self::from_digit(rhs, self.width());
         }
     }
 
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
-            let mut mp_rhs = MPint::new(self.width);
+            let mut mp_rhs = MPint::new(self.width());
             mp_rhs[0] = rhs as DigitT;
             mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
             *self += mp_rhs;
@@ -542,7 +544,7 @@ pub mod mp_int {
 
             // ~~~~ Main ~~~~
             let operand_len = self.len();
-            let max_new_width = self.width * 2;
+            let max_new_width = self.width() * 2;
 
             let mut end_product = MPint::new(max_new_width);
 
@@ -596,7 +598,6 @@ pub mod mp_int {
                 }
             }
             self.data.truncate((first_non_zero + 1).max(min_len));
-            self.width = self.len() * DIGIT_BITS as usize;
         }
 
         pub fn extending_mul(&self, rhs: &Self) -> Self {
@@ -625,7 +626,7 @@ pub mod mp_int {
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPint {
         fn shl_assign(&mut self, mut shift_distance: u32) {
-            assert!((shift_distance as usize) < self.width);
+            assert!((shift_distance as usize) < self.width());
             const MAX_STEP: u32 = DIGIT_BITS - 1;
 
             let mut sh_step;
@@ -657,7 +658,7 @@ pub mod mp_int {
     /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
     impl PartialOrd for MPint {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            if self.width != other.width {
+            if self.len() != other.len() {
                 return None;
             }
 
@@ -1073,16 +1074,16 @@ pub mod mp_int {
             #[test]
             fn zero_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(0, b.width);
+                let a = MPint::from_digit(0, b.width());
                 test_extending_mul_correctness(a, b);
                 let a = mpint![0, 9, 8, 7, 6, 0];
-                let b = MPint::from_digit(0, a.width);
+                let b = MPint::from_digit(0, a.width());
                 test_extending_mul_correctness(a, b);
             }
             #[test]
             fn one_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(1, b.width);
+                let a = MPint::from_digit(1, b.width());
                 test_extending_mul_correctness(a.clone(), b.clone());
 
                 assert_eq!(
@@ -1097,7 +1098,7 @@ pub mod mp_int {
                 );
 
                 let c = mpint![0, 9, 8, 7, 6, 0];
-                let d = MPint::from_digit(1, c.width);
+                let d = MPint::from_digit(1, c.width());
                 test_extending_mul_correctness(c.clone(), d.clone());
                 test_extending_mul_correctness(-a, b);
                 test_extending_mul_correctness(c, -d);
