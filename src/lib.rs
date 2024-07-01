@@ -1260,30 +1260,18 @@ pub mod mp_int {
 
             mod large_values_4096 {
                 use super::*;
-                const LHS: [DigitT; 64] = [
-                    26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94,
-                    52, 46, 73, 72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21,
-                    75, 13, 96, 25, 62, 0, 23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60,
-                    55, 81, 87, 2,
-                ];
-                const RHS: [DigitT; 64] = [
-                    48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41,
-                    0, 42, 89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36,
-                    23, 90, 25, 74, 57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, 70,
-                    22, 80, 26, 18,
-                ];
 
                 #[test]
                 fn same_signs() {
-                    let a = MPint::new(<Vec<u64>>::from(LHS));
-                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
+                    let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
                     test_addition_correctness(a.clone(), b.clone());
                     test_addition_correctness(-a, -b);
                 }
                 #[test]
                 fn diff_signs() {
-                    let a = MPint::new(<Vec<u64>>::from(LHS));
-                    let b = MPint::new(<Vec<u64>>::from(RHS));
+                    let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
+                    let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
                     test_addition_correctness(a.clone(), -&b); //a + -b
                     test_addition_correctness(-&a, b.clone()); //-a + b
                     test_addition_correctness(b.clone(), -&a); // b + -a
@@ -1339,5 +1327,17 @@ pub mod mp_int {
 
             py_result.unwrap()
         }
+
+        const LARGE_NUM_1: [DigitT; 64] = [
+            26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94, 52, 46,
+            73, 72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21, 75, 13, 96, 25,
+            62, 0, 23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60, 55, 81, 87, 2,
+        ];
+
+        const LARGE_NUM_2: [DigitT; 64] = [
+            48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41, 0, 42,
+            89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36, 23, 90, 25, 74,
+            57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, 70, 22, 80, 26, 18,
+        ];
     }
 }
