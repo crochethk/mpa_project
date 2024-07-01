@@ -1120,6 +1120,13 @@ pub mod mp_int {
                 let b = a.clone();
                 test_mul_correctness(a, b);
             }
+
+            #[test]
+            fn large_factors_2() {
+                let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
+                let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
+                test_mul_correctness(a.clone(), b.clone());
+            }
         }
 
         mod test_add {
@@ -1337,7 +1344,7 @@ pub mod mp_int {
         const LARGE_NUM_2: [DigitT; 64] = [
             48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41, 0, 42,
             89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36, 23, 90, 25, 74,
-            57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, 70, 22, 80, 26, 18,
+            57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, D_MAX, 22, 80, 26, 18,
         ];
     }
 }
