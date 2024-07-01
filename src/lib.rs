@@ -444,6 +444,16 @@ pub mod mp_int {
         }
     }
 
+    impl Add for MPint {
+        type Output = Self;
+        /// Consuming, binary `+` operator.
+        /// Uses `MPint::add_assign(&mut self, rhs: Self)` internally.
+        fn add(mut self, rhs: Self) -> Self::Output {
+            self += rhs;
+            self
+        }
+    }
+
     impl Add for &MPint {
         type Output = MPint;
         fn add(self, rhs: Self) -> Self::Output {
