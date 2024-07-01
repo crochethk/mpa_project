@@ -377,7 +377,7 @@ pub mod mp_int {
             let result_sign = !self.sign;
             // Following necessary b/co of how add works (neg. self would recurse infinitely)
             self.sign = Sign::Pos;
-            *self += 1;
+            *self += 1 as DigitT;
 
             self.sign = result_sign;
         }
@@ -456,6 +456,16 @@ pub mod mp_int {
         }
     }
 
+    impl AddAssign<DoubleDigitT> for MPint {
+        /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
+        fn add_assign(&mut self, rhs: DoubleDigitT) {
+            let mut mp_rhs = MPint::new(self.width);
+            mp_rhs[0] = rhs as DigitT;
+            mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
+            *self += mp_rhs;
+        }
+    }
+
     impl AddAssign for MPint {
         fn add_assign(&mut self, mut rhs: Self) {
             self.assert_same_width(&rhs);
@@ -508,8 +518,79 @@ pub mod mp_int {
     }
 
     impl MPint {
-        /// Multiplies two `MPint`, extending the width to as necessary.
-        pub fn extending_mul(&self, rhs: &Self) -> Self {
+        /// Multiplies two `MPint`, extending the width as necessary.
+        /// This uses a "Product-Scanning" approach, which means we directly
+        /// calculate each result digit one at a time.
+        fn extending_prod_scan_mul(&self, rhs: &Self) -> Self {
+            // ~~~~ Preamble ~~~~
+            self.assert_same_width(rhs);
+
+            // Zero short circuit
+            if self.is_zero() {
+                return self.clone();
+            } else if rhs.is_zero() {
+                return rhs.clone();
+            }
+
+            let result_sign = if self.sign == rhs.sign {
+                // same signs implicate positive result
+                Sign::Pos
+            } else {
+                // different signs implicate negative result
+                Sign::Neg
+            };
+
+            // ~~~~ Main ~~~~
+            let operand_len = self.len();
+            let max_new_width = self.width * 2;
+
+            let mut end_product = MPint::new(max_new_width);
+
+            // Calculate one result digit per iteration
+            for i in 0..end_product.len() {
+                // Sum partial products and propagate carries
+                for j in 0..operand_len {
+                    if j > i {
+                        // Happens in LSB-half of the end product.
+                        // k would get neg.
+                        break;
+                    }
+
+                    let k: usize = i - j;
+                    if k >= operand_len {
+                        // Possible, when `i >= end_product.len() / 2`
+                        // i.e. in MSB-half of the end product
+                        continue;
+                    }
+                    let a_j = self[j] as DoubleDigitT;
+                    let b_k = rhs[k] as DoubleDigitT;
+
+                    let prod_i_jk: DoubleDigitT = a_j * b_k;
+
+                    // Implicit carry propagation
+                    end_product += prod_i_jk;
+                }
+
+                // Prepare for easier partial product addition in next iteration.
+                end_product.rotate_digits_right(1);
+            }
+
+            // ~~~~ Epilog ~~~~
+            end_product.trim_empty_end(self.len());
+            end_product.sign = result_sign;
+
+            end_product
+        }
+
+        fn rotate_digits_right(&mut self, n: usize) {
+            self.data.rotate_left(n);
+        }
+
+        /// Multiplies two `MPint`, extending the width as necessary.
+        /// This uses a kind of "Operand-Scanning" algorithm.
+        #[allow(dead_code)]
+        fn extending_operand_scan_mul(&self, rhs: &Self) -> Self {
+            // ~~~~ Preamble ~~~~
             self.assert_same_width(rhs);
 
             // Zero short circuit
@@ -527,6 +608,8 @@ pub mod mp_int {
                 Sign::Neg
             };
             let max_new_width = self.width * 2;
+
+            // ~~~~ Main ~~~~
 
             // Given `a*b = a0..an * b0..bn` where `a0..an` and `b0..bn` are the digits of the factors.
             // Each row of following matrices represents the multiplication of a digit of one factor
@@ -574,24 +657,32 @@ pub mod mp_int {
                 }
 
                 // Make sure next column is added to the correct position of the number system
-                end_product.data.rotate_left(1);
+                end_product.rotate_digits_right(1);
             }
 
-            // trim end if was extended
-            if end_product.width > self.width {
-                // Get first non-zero digit index from the end
-                let mut fist_non_zero = 0;
-                for (i, d) in end_product.iter().enumerate().rev() {
-                    if *d != 0 {
-                        fist_non_zero = i;
-                        break;
-                    }
-                }
-                end_product.data.truncate(fist_non_zero + 1);
-            }
-
+            // ~~~~ Epilog ~~~~
+            end_product.trim_empty_end(self.len());
             end_product.sign = result_sign;
+
             end_product
+        }
+
+        fn trim_empty_end(&mut self, min_len: usize) {
+            // Get first non-zero digit index from the end
+            let mut first_non_zero = 0;
+            for (i, d) in self.iter().enumerate().rev() {
+                if *d != 0 {
+                    first_non_zero = i;
+                    break;
+                }
+            }
+            self.data.truncate((first_non_zero + 1).max(min_len));
+            self.width = self.len() * DIGIT_BITS as usize;
+        }
+
+        pub fn extending_mul(&self, rhs: &Self) -> Self {
+            // self.extending_operand_scan_mul(rhs)
+            self.extending_prod_scan_mul(rhs)
         }
     }
 
@@ -1075,6 +1166,18 @@ pub mod mp_int {
                 let b = mpint![100, 10, 1, 0, 0, 0];
                 let a = MPint::from_digit(1, b.width);
                 test_extending_mul_correctness(a.clone(), b.clone());
+
+                assert_eq!(
+                    a.clone().extending_mul(&b),
+                    b.clone(),
+                    "Result should exactly match 'not-one' operand"
+                );
+                assert_eq!(
+                    b.clone().extending_mul(&a),
+                    b.clone(),
+                    "Result should exactly match 'not-one' operand"
+                );
+
                 let c = mpint![0, 9, 8, 7, 6, 0];
                 let d = MPint::from_digit(1, c.width);
                 test_extending_mul_correctness(c.clone(), d.clone());
