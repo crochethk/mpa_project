@@ -7,13 +7,29 @@ pub enum Op {
     PLUS,
     MINUS,
     MULT,
+    DIV,
 }
-impl Op {
-    pub fn to_str(&self) -> &'static str {
-        match self {
+
+impl From<Op> for &'static str {
+    fn from(value: Op) -> Self {
+        match value {
             Op::PLUS => "+",
             Op::MINUS => "-",
             Op::MULT => "*",
+            Op::DIV => "/",
+        }
+    }
+}
+
+impl TryFrom<&'static str> for Op {
+    type Error = ParseError;
+    fn try_from(value: &'static str) -> Result<Self, Self::Error> {
+        match value {
+            "+" => Ok(Op::PLUS),
+            "-" => Ok(Op::MINUS),
+            "*" => Ok(Op::MULT),
+            "/" => Ok(Op::DIV),
+            _ => Err("unknown operator".into()),
         }
     }
 }
