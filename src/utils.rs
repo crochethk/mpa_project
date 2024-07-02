@@ -3,37 +3,6 @@ use std::f64::consts::{LOG10_2, LOG2_10};
 use std::fmt::Display;
 use std::ops::{Div, Rem};
 
-pub enum Op {
-    PLUS,
-    MINUS,
-    MULT,
-    DIV,
-}
-
-impl From<Op> for &'static str {
-    fn from(value: Op) -> Self {
-        match value {
-            Op::PLUS => "+",
-            Op::MINUS => "-",
-            Op::MULT => "*",
-            Op::DIV => "/",
-        }
-    }
-}
-
-impl TryFrom<&'static str> for Op {
-    type Error = ParseError;
-    fn try_from(value: &'static str) -> Result<Self, Self::Error> {
-        match value {
-            "+" => Ok(Op::PLUS),
-            "-" => Ok(Op::MINUS),
-            "*" => Ok(Op::MULT),
-            "/" => Ok(Op::DIV),
-            _ => Err("unknown operator".into()),
-        }
-    }
-}
-
 /// Basically a full adder for `u64`
 ///
 /// # Explanation

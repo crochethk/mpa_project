@@ -764,7 +764,6 @@ pub mod mp_int {
         use pyo3::types::PyList;
 
         use super::*;
-        use crate::utils::Op;
 
         const D_MAX: DigitT = DigitT::MAX;
 
@@ -773,7 +772,7 @@ pub mod mp_int {
         /// # Rules
         /// - `create_op_correctness_tester($fn_name, $op)`
         ///     - `$fn_name` - The created function's name.
-        ///     - `$op` - An operator token (e.g. `+`). Must have a corresponding `utils::Op`.
+        ///     - `$op` - An operator token. Currently supports: `+`, `-`, `*`.
         /// # Examples
         /// ```rust
         /// create_op_correctness_tester!(test_addition_correctness, +);
@@ -783,7 +782,7 @@ pub mod mp_int {
                 fn $fn_name(a: MPint, b: MPint) {
                     let result = &a $op &b;
                     let test_result = verify_arithmetic_result(
-                        &a, stringify!($op).try_into().unwrap(), &b, &result);
+                        &a, stringify!($op), &b, &result);
                     println!("{:?}", test_result);
                     assert!(test_result.0, "{}", test_result.1);
                 }
@@ -1316,7 +1315,7 @@ pub mod mp_int {
         /// - `res_to_verify` - The result to verify against python's calculations.
         fn verify_arithmetic_result(
             lhs: &MPint,
-            op: Op,
+            op: &str,
             rhs: &MPint,
             res_to_verify: &MPint,
         ) -> (bool, String) {
@@ -1340,7 +1339,7 @@ pub mod mp_int {
                 let fn_name = "test_operation_result";
                 let args: (String, &str, String, String, i32) = (
                     lhs.to_hex_string(),
-                    op.into(),
+                    op,
                     rhs.to_hex_string(),
                     res_to_verify.to_hex_string(),
                     16, //base of the number strings
