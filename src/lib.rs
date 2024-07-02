@@ -1,9 +1,8 @@
-pub mod bit_utils;
 pub mod utils;
 
 pub mod mp_int {
     use crate::utils::{
-        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError, TrimInPlace,
+        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError,
     };
     use std::{
         cmp::Ordering,
@@ -308,10 +307,11 @@ pub mod mp_int {
                 result.push(self.sign.into());
             }
 
-            for d in self.iter().rev() {
-                result += &crate::bit_utils::int_to_binary_str(*d);
-                result += " ";
-            }
+            const BIN_WIDTH: usize = DIGIT_BITS as usize;
+            result = self
+                .iter()
+                .rev()
+                .fold(result, |acc, d| acc + &format!("{:0width$b}", d, width = BIN_WIDTH));
             result
         }
 
@@ -329,16 +329,15 @@ pub mod mp_int {
         }
 
         pub fn to_hex_string(&self) -> String {
-            const X_WIDTH: usize = (DIGIT_BITS / 4) as usize;
             let mut hex: String = String::new();
             if self.is_negative() {
                 hex.push(self.sign.into());
             }
+            const HEX_WIDTH: usize = (DIGIT_BITS / 4) as usize;
             hex = self
                 .iter()
                 .rev()
-                .fold(hex, |acc, d| acc + &format!("{:0width$X} ", d, width = X_WIDTH));
-            hex.trim_end_in_place();
+                .fold(hex, |acc, d| acc + &format!("{:0width$X}", d, width = HEX_WIDTH));
             hex
         }
 
@@ -887,9 +886,9 @@ pub mod mp_int {
                 {
                     let a = mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
-                        "0000000000000003 ",
-                        "0000000000000002 ",
-                        "FFFFFFFFFFFFFFFF ",
+                        "0000000000000003",
+                        "0000000000000002",
+                        "FFFFFFFFFFFFFFFF",
                         "0000000000000000"
                     );
                     assert_eq!(a.to_hex_string(), expected);
@@ -897,13 +896,13 @@ pub mod mp_int {
                 {
                     let a = mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
                     let expected =
-                        concat!("8000000000000000 ", "0000000000002000 ", "000000000000002A",);
+                        concat!("8000000000000000", "0000000000002000", "000000000000002A",);
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
                     let a = mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
-                        concat!("FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
+                        concat!("FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
                 }
             }
@@ -914,9 +913,9 @@ pub mod mp_int {
                     let a = -mpint![0, D_MAX, 2, 3];
                     let expected = concat!(
                         "-",
-                        "0000000000000003 ",
-                        "0000000000000002 ",
-                        "FFFFFFFFFFFFFFFF ",
+                        "0000000000000003",
+                        "0000000000000002",
+                        "FFFFFFFFFFFFFFFF",
                         "0000000000000000"
                     );
                     assert_eq!(a.to_hex_string(), expected);
@@ -924,13 +923,13 @@ pub mod mp_int {
                 {
                     let a = -mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
                     let expected =
-                        concat!("-", "8000000000000000 ", "0000000000002000 ", "000000000000002A",);
+                        concat!("-", "8000000000000000", "0000000000002000", "000000000000002A",);
                     assert_eq!(a.to_hex_string(), expected);
                 }
                 {
                     let a = -mpint![D_MAX, D_MAX, D_MAX];
                     let expected =
-                        concat!("-", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF ", "FFFFFFFFFFFFFFFF",);
+                        concat!("-", "FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF",);
                     assert_eq!(a.to_hex_string(), expected);
                 }
             }
