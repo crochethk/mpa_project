@@ -77,12 +77,14 @@ fn run_random_mode(args: &Cli) {
     //
     // Run radnomized test operations
     //
-    let _dummy = MPint::new(args.width);
-    println!("+----------- Test: lhs {} rhs -----------+", args.operation);
-    println!("| - Mode: Random operands");
-    println!("| - Operands width: {} bits", _dummy.width());
-    println!("| - Test count: {}", args.test_count);
-    println!("+---------------------------------------+");
+
+    let mut header = String::new();
+    _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
+    _ = writeln!(header, "| - Mode: Random operands");
+    _ = writeln!(header, "| - Operands width: {} bits", MPint::new(args.width).width());
+    _ = writeln!(header, "| - Test count: {}", args.test_count);
+    _ = writeln!(header, "+---------------------------------------+");
+    print!("{}", header);
 
     let seed: u128 = args.seed.unwrap_or_else(|| rand::random());
 
@@ -95,12 +97,16 @@ fn run_random_mode(args: &Cli) {
         // Get random operands
         let lhs = random_mpint(&mut rng, args.width);
         let rhs = random_mpint(&mut rng, args.width);
-        println!("~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
-        println!("lhs = {lhs}");
-        println!("rhs = {rhs}");
+
+        let mut str_buff = String::new();
+        _ = writeln!(str_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
+        _ = writeln!(str_buff, "lhs = {lhs}");
+        _ = writeln!(str_buff, "rhs = {rhs}");
         let result = args.operation.apply(lhs, rhs);
-        println!("result = {result}");
-        // println!("");
+
+        _ = writeln!(str_buff, "result = {result}");
+
+        print!("{}", str_buff);
 
         test_cnt -= 1;
     }
