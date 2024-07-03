@@ -1,49 +1,109 @@
+use clap::{Parser, ValueEnum};
+use mpa_lib::mp_int::*;
+use rand::{Rng, RngCore};
+use rand_pcg::Pcg64Mcg;
+use std::fmt::{Display, Write};
 ///!
 /// Demo CLI to manually test arithmetics on multiple-precision numbers implemented
 /// in `mpa_lib`.
 ///
-use mpa_lib::mp_int::*;
-use rand::{Rng, RngCore};
-use rand_pcg::Pcg64Mcg;
+/// Usage: mpa_demo_cli [OPTIONS] <OPERATION>
+///
+/// Arguments:
+///   <OPERATION>  [possible values: add, sub, mul]
+///
+/// Options:
+///   -w, --width <WIDTH>            Bit-width of operands to perform tests with [default: 256]
+///   -n, --test-count <TEST_COUNT>  Number of operations to perform [default: 10]
+///   -s, --seed <SEED>              RNG seed (128 bit integer) used for random operands [default: random]
+///   -h, --help                     Print help
+///   -V, --version                  Print version
+///
+
+#[derive(Debug, Parser)]
+#[command(version, about, long_about = None, arg_required_else_help = true)]
+struct Cli {
+    #[arg(value_enum)]
+    operation: Operation,
+
+    /// Bit-width of operands to perform tests with
+    #[arg(long, short, default_value_t = 256)]
+    width: usize,
+
+    /// Number of operations to perform
+    #[arg(long, short('n'), default_value_t = 10)]
+    test_count: usize,
+
+    /// RNG seed (128 bit integer) used for random operands [default: random]
+    #[arg(long, short)]
+    seed: Option<u128>,
+}
+
+#[derive(Debug, Copy, Clone, ValueEnum)]
+enum Operation {
+    Add,
+    Sub,
+    Mul,
+}
+
+impl Operation {
+    fn apply(&self, lhs: MPint, rhs: MPint) -> MPint {
+        match self {
+            Operation::Add => lhs + rhs,
+            Operation::Sub => lhs - rhs,
+            Operation::Mul => &lhs * &rhs,
+        }
+    }
+}
+
+impl Display for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char(match self {
+            Operation::Add => '+',
+            Operation::Sub => '-',
+            Operation::Mul => '*',
+        })
+    }
+}
 
 fn main() {
-    let usr_seed: u128 = 0xcafef00dd15ea5e5; // default PCG seed
+    let args = Cli::parse();
 
-    let usr_num_width: usize = 1234;
-    let _usr_test_count: usize = 123;
+    run_random_mode(&args);
+}
+
+/// Runs randomized tests based on provided args
+fn run_random_mode(args: &Cli) {
+    //
+    // Run radnomized test operations
+    //
+    let _dummy = MPint::new(args.width);
+    println!("+----------- Test: lhs {} rhs -----------+", args.operation);
+    println!("| - Mode: Random operands");
+    println!("| - Operands width: {} bits", _dummy.width());
+    println!("| - Test count: {}", args.test_count);
+    println!("+---------------------------------------+");
+
+    let seed: u128 = args.seed.unwrap_or_else(|| rand::random());
 
     // Get a RNG
     // let mut rng = rand::thread_rng();
-    let mut rng = Pcg64Mcg::new(usr_seed);
+    let mut rng = Pcg64Mcg::new(seed);
 
-    let lhs = random_mpint(&mut rng, usr_num_width);
-    let rhs = random_mpint(&mut rng, usr_num_width);
+    let mut test_cnt = args.test_count;
+    while test_cnt > 0 {
+        // Get random operands
+        let lhs = random_mpint(&mut rng, args.width);
+        let rhs = random_mpint(&mut rng, args.width);
+        println!("~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
+        println!("lhs = {lhs}");
+        println!("rhs = {rhs}");
+        let result = args.operation.apply(lhs, rhs);
+        println!("result = {result}");
+        // println!("");
 
-    let operation = "some operation verb";
-
-    let result = match operation {
-        "add" => &lhs + &rhs,
-        _ => &lhs + &rhs,
-    };
-
-    println!("+--------------------------------+");
-    println!("| Performing: lhs + rhs = result |");
-    println!("+--------------------------------+");
-
-    let mut test_cnt = 0;
-    test_cnt += 1;
-    println!("~~~~ TEST {test_cnt} ~~~~");
-    println!("lhs = {lhs}");
-    println!("rhs = {rhs}");
-    println!("result = {result}");
-    println!("");
-
-    test_cnt += 1;
-    println!("~~~~ TEST {test_cnt} ~~~~");
-    println!("lhs = {lhs}");
-    println!("rhs = {rhs}");
-    println!("result = {result}");
-    println!("");
+        test_cnt -= 1;
+    }
 }
 
 fn random_mpint<R: RngCore>(rng: &mut R, width: usize) -> MPint {

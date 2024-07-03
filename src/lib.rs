@@ -169,7 +169,7 @@ pub mod mp_int {
             Ok(self)
         }
 
-        fn width_to_bins_count(width: usize) -> usize {
+        pub fn width_to_bins_count(width: usize) -> usize {
             width.div_ceil(DIGIT_BITS as usize)
         }
 
