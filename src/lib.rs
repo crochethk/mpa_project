@@ -428,6 +428,14 @@ pub mod mp_int {
         }
     }
 
+    impl Sub for MPint {
+        type Output = Self;
+        fn sub(mut self, rhs: Self) -> Self::Output {
+            self -= rhs;
+            self
+        }
+    }
+
     impl Sub for &MPint {
         type Output = MPint;
         fn sub(self, rhs: Self) -> Self::Output {
