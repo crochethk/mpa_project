@@ -2,7 +2,10 @@ use clap::{Parser, ValueEnum};
 use mpa_lib::mp_int::*;
 use rand::{Rng, RngCore};
 use rand_pcg::Pcg64Mcg;
-use std::fmt::{Display, Write};
+use std::{
+    fmt::{Display, Write as _},
+    io::{self, stdin, Write as _},
+};
 ///!
 /// Demo CLI to manually test arithmetics on multiple-precision numbers implemented
 /// in `mpa_lib`.
@@ -37,6 +40,11 @@ struct Cli {
     /// RNG seed (128 bit integer) used for random operands [default: random]
     #[arg(long, short)]
     seed: Option<u128>,
+
+    /// Manually specify operands (base 10) in a loop.
+    /// Enter `q` to quit.
+    #[arg(long, short, conflicts_with_all(["test_count", "seed"]))]
+    interactive: bool,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
@@ -69,11 +77,72 @@ impl Display for Operation {
 fn main() {
     let args = Cli::parse();
 
-    run_random_mode(&args);
+    if args.interactive {
+        run_interactive_mode(&args);
+    } else {
+        run_randomized_mode(&args);
+    }
 }
 
+const EXIT_CMD: &str = "q";
+fn run_interactive_mode(args: &Cli) {
+    println!("Enter decimal operand, then hit RETURN");
+    loop {
+        let lhs = match get_operand_from_user(args, "lhs: ") {
+            UserInputResult::Operand(x) => x,
+            UserInputResult::Error => continue,
+            UserInputResult::ExitCmd => break,
+        };
+
+        let rhs = match get_operand_from_user(args, "rhs: ") {
+            UserInputResult::Operand(x) => x,
+            UserInputResult::Error => continue,
+            UserInputResult::ExitCmd => break,
+        };
+
+        println!(">>> Calculating <<<\n{}\n{}\n{}", lhs, args.operation, rhs);
+        println!(">>> Result <<<\n{}\n", args.operation.apply(lhs, rhs));
+    }
+
+    println!("Good bye!");
+}
+
+enum UserInputResult {
+    Operand(MPint),
+    Error,
+    ExitCmd,
+}
+
+/// Tries to get an operand from user. The result is wrapped in `UserInputResult`,
+/// which can contain the actual operand, an error indicator or the exit command.
+fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
+    let input = prompt_user_input(msg);
+    let input = input.trim();
+    if input == EXIT_CMD {
+        return UserInputResult::ExitCmd;
+    }
+
+    match MPint::from_str(&input, args.width) {
+        Ok(x) => UserInputResult::Operand(x),
+        Err(e) => {
+            println!("{e}");
+            UserInputResult::Error
+        }
+    }
+}
+
+/// Gets input from `stdin` showing the given message.
+fn prompt_user_input(msg: &str) -> String {
+    print!("{msg}");
+    io::stdout().flush().unwrap();
+    let mut buff = String::new();
+    stdin().read_line(&mut buff).unwrap();
+    buff
+}
+
+//--------------------------------------------------------------------------------------------------
 /// Runs randomized tests based on provided args
-fn run_random_mode(args: &Cli) {
+fn run_randomized_mode(args: &Cli) {
     //
     // Run radnomized test operations
     //
