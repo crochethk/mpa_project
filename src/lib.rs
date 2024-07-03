@@ -1,9 +1,7 @@
 pub mod utils;
 
 pub mod mp_int {
-    use crate::utils::{
-        add_with_carry, dec_to_bit_width, div_with_rem, parse_to_digits, ParseError,
-    };
+    use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
     use std::{
         cmp::Ordering,
         fmt::Display,
@@ -265,38 +263,42 @@ pub mod mp_int {
                 _ => Sign::default(),
             };
 
-            let digits: Vec<u8> = match parse_to_digits(num_str) {
+            let decimals: Vec<u8> = match parse_to_digits(num_str) {
                 Ok(ds) => ds,
                 Err(e) => return Err(e),
-            };
-
-            // Validate width
-            {
-                let req_width = dec_to_bit_width(digits.len());
-                if req_width > width {
-                    return Err("speficfied bit width is too short for the given number".into());
-                }
             };
 
             // Build digits by applying Horner-Schema
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
-            let mut res1 = Self::new(width);
-            for d in digits {
-                let mut res2 = res1.clone();
+            let mut result = Self::new(width);
+            for d in decimals {
+                let mut pt_res1 = result.clone();
+                let mut pt_res2 = result.clone();
+                let mut has_overflowed = false;
 
-                // Multiply by 10:
+                // Multiply last result by 10:
                 // (2*2*2*x + 2*x == 10*x)
-                res1 <<= 3;
-                res2 <<= 1;
-                res1 += res2;
+                pt_res1 <<= 3;
+                has_overflowed |= pt_res1 < result;
+                pt_res2 <<= 1;
+                has_overflowed |= pt_res2 < result;
 
-                res1 += d as DigitT; // result = result + (d as DigitT);
+                // result = pt_res1 + pt_res2;
+                has_overflowed |= pt_res1.overflowing_add(pt_res2);
+                result = pt_res1;
+
+                // result += d as DigitT;
+                has_overflowed |= result.overflowing_add(MPint::from_digit(d as DigitT, width));
+
+                if has_overflowed {
+                    return Err("speficfied bit width is too short for the given number".into());
+                }
             }
 
-            res1.sign = sign;
-            Ok(res1)
+            result.sign = sign;
+            Ok(result)
         }
 
         /// Binary string, starting with MSB, ending with LSB on the right.
@@ -398,6 +400,53 @@ pub mod mp_int {
             }
             carry
         }
+
+        /// In place adds `self` to `rhs`.\
+        /// Returns a boolean indicating whether an arithmetic overflow occured.
+        fn overflowing_add(&mut self, mut rhs: Self) -> bool {
+            self.assert_same_width(&rhs);
+            let rhs = &mut rhs;
+
+            let mut carry: bool = false;
+
+            let same_sign = self.sign == rhs.sign;
+            if !same_sign {
+                // Order operands
+                let pos_is_self;
+                let (pos, neg) = if self.sign >= rhs.sign {
+                    pos_is_self = true;
+                    (self, rhs)
+                } else {
+                    pos_is_self = false;
+                    (rhs, self)
+                };
+
+                let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
+
+                neg.twos_complement_inplace();
+
+                // Add `rhs` to `self`.
+                // Meaningful carry only ever possible with same signs.
+                let sum = if pos_is_self {
+                    _ = pos.carry_ripple_add_bins_inplace(&neg);
+                    pos
+                } else {
+                    _ = neg.carry_ripple_add_bins_inplace(&pos);
+                    neg
+                };
+
+                if pos_lt_neg {
+                    sum.twos_complement_inplace(); // sign is switched here
+                }
+            } else {
+                // operands have same sign
+                carry = self.carry_ripple_add_bins_inplace(&rhs);
+            }
+
+            // Overflow can only ever occur, when both signs were equal, since
+            // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
+            carry
+        }
     }
 
     impl Not for &mut MPint {
@@ -488,53 +537,9 @@ pub mod mp_int {
     }
 
     impl AddAssign for MPint {
-        fn add_assign(&mut self, mut rhs: Self) {
-            self.assert_same_width(&rhs);
-            let rhs = &mut rhs;
-
-            let mut _carry: bool = false;
-
-            let same_sign = self.sign == rhs.sign;
-            if !same_sign {
-                // Order operands
-                let pos_is_self;
-                let (pos, neg) = if self.sign >= rhs.sign {
-                    pos_is_self = true;
-                    (self, rhs)
-                } else {
-                    pos_is_self = false;
-                    (rhs, self)
-                };
-
-                let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
-
-                neg.twos_complement_inplace();
-
-                // Add `rhs` to `self`.
-                // Meaningful carry only ever possible with same signs.
-                let sum = if pos_is_self {
-                    _ = pos.carry_ripple_add_bins_inplace(&neg);
-                    pos
-                } else {
-                    _ = neg.carry_ripple_add_bins_inplace(&pos);
-                    neg
-                };
-
-                if pos_lt_neg {
-                    sum.twos_complement_inplace(); // sign is switched here
-                }
-            } else {
-                // operands have same sign
-                _carry = self.carry_ripple_add_bins_inplace(&rhs);
-            }
-
-            // TODO If panic on overflow is desirable, implement other "wrapping_add" variants
-            // TODO since overflow is ok e.g. when calculating two's complement.
-            // // Overflow can only ever occur, when both signs were equal, since
-            // // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
-            // //
-            // // I.e.: `(same_sign && carry) => overflow`
-            // // assert!(!carry, "MPint::Add resulted in overflow");
+        /// Performs the += operation. Arithmetic overflows are silently ignored.
+        fn add_assign(&mut self, rhs: Self) {
+            self.overflowing_add(rhs);
         }
     }
 

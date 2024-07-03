@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::f64::consts::{LOG10_2, LOG2_10};
 use std::fmt::Display;
 use std::ops::{Div, Rem};
 
@@ -38,22 +37,6 @@ pub fn add_with_carry(lhs: u64, rhs: u64, mut carry: bool) -> (u64, bool) {
 pub fn div_with_rem<T: Div<Output = T> + Rem<Output = T> + Copy>(a: T, b: T) -> (T, T) {
     // These two operations are optimized away into one assembly instruction
     (a / b, a % b)
-}
-
-/// ! untested
-/// Calculates the least amount of decimal digits required to represent a
-/// `bit_width` binary number in base 10.
-///
-pub fn bit_to_dec_width(bit_width: usize) -> usize {
-    (bit_width as f64 * LOG10_2).ceil() as usize
-}
-
-/// ! untested
-/// Calculates the least amount of bits required to represent a `dec_width`
-/// decimal number as binary integer.
-///
-pub fn dec_to_bit_width(dec_width: usize) -> usize {
-    (dec_width as f64 * LOG2_10).ceil() as usize
 }
 
 ///
