@@ -19,6 +19,7 @@ use std::{
 ///   -w, --width <WIDTH>            Bit-width of operands to perform tests with [default: 256]
 ///   -n, --test-count <TEST_COUNT>  Number of operations to perform [default: 10]
 ///   -s, --seed <SEED>              RNG seed (128 bit integer) used for random operands [default: random]
+///   -i, --interactive              Manually specify operands (base 10) in a loop. Enter `q` to quit
 ///   -h, --help                     Print help
 ///   -V, --version                  Print version
 ///
