@@ -5,6 +5,7 @@ use rand_pcg::Pcg64Mcg;
 use std::{
     fmt::{Display, Write as _},
     io::{self, stdin, Write as _},
+    str::FromStr,
 };
 ///!
 /// Demo CLI to manually test arithmetics on multiple-precision numbers implemented
@@ -46,6 +47,11 @@ struct Cli {
     /// Enter `q` to quit.
     #[arg(long, short, conflicts_with_all(["test_count", "seed"]))]
     interactive: bool,
+
+    /// Base of the input in interactive mode. Output is hex regardless.
+    #[arg(long, short, conflicts_with_all(["test_count", "seed"]), default_value="10",
+        value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
+    base: String,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
@@ -122,8 +128,14 @@ fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
     if input == EXIT_CMD {
         return UserInputResult::ExitCmd;
     }
+    let in_base = u32::from_str(args.base.as_str()).unwrap();
 
-    match MPint::from_dec_str(&input, args.width) {
+    match {
+        match in_base {
+            16 => MPint::from_hex_str(&input, args.width),
+            _ => MPint::from_dec_str(&input, args.width),
+        }
+    } {
         Ok(x) => UserInputResult::Operand(x),
         Err(e) => {
             println!("{e}");
