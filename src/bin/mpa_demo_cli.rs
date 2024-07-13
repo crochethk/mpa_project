@@ -8,21 +8,8 @@ use std::{
     str::FromStr,
 };
 ///!
-/// Demo CLI to manually test arithmetics on multiple-precision numbers implemented
-/// in `mpa_lib`.
-///
-/// Usage: mpa_demo_cli [OPTIONS] <OPERATION>
-///
-/// Arguments:
-///   <OPERATION>  [possible values: add, sub, mul]
-///
-/// Options:
-///   -w, --width <WIDTH>            Bit-width of operands to perform tests with [default: 256]
-///   -n, --test-count <TEST_COUNT>  Number of operations to perform [default: 10]
-///   -s, --seed <SEED>              RNG seed (128 bit integer) used for random operands [default: random]
-///   -i, --interactive              Manually specify operands (base 10) in a loop. Enter `q` to quit
-///   -h, --help                     Print help
-///   -V, --version                  Print version
+/// Demo CLI to manually test arithmetics on multiple-precision numbers implemented.
+/// Run `mpa_demo_cli --help` for usage info.
 ///
 
 #[derive(Debug, Parser)]

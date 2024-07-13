@@ -198,12 +198,12 @@ pub mod mp_int {
         }
 
         /// Calculates quotient and remainder using the given _native_ integer
-        /// divisor.
+        /// Calculates quotient and remainder using the given _native_ integer divisor.
         ///
-        /// ## Footnote
+        /// # Footnote
         /// Since how division works, the remainder will always be `0 ≤ |rem| < divisor`.
         ///
-        /// ## Algorithm Description
+        /// # Algorithm Description
         /// - Division Term: `A = q*b + r`
         ///     - `A` = self
         ///     - `b` = divisor
@@ -233,8 +233,7 @@ pub mod mp_int {
                 // "Prefix" d with last_r (multiplies last_r by `2^digit_bits`)
                 let dividend = (last_r << DIGIT_BITS) + d;
 
-                // TODO test this assumption
-                // Important: "0 ≤ last_r ≤ DigitT::MAX" and "0 ≤ q ≤ DigitT::MAX" ← unsure 'bout the latter
+                // Important detail: "0 ≤ last_r ≤ DigitT::MAX" and "0 ≤ q ≤ DigitT::MAX" // TODO <----- review this assumption...
                 let q;
                 (q, last_r) = div_with_rem(dividend, divisor);
 
