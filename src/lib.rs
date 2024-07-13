@@ -117,6 +117,12 @@ pub mod mp_int {
         }
     }
 
+    impl PartialEq<DigitT> for MPint {
+        fn eq(&self, other: &DigitT) -> bool {
+            self[0] == *other
+        }
+    }
+
     pub trait CreateNewFrom<T> {
         /// Provides different constructor overloads
         fn new(src: T) -> Self;
@@ -415,6 +421,33 @@ pub mod mp_int {
                 .rev()
                 .fold(hex, |acc, d| acc + &format!("{:0width$X}", d, width = HEX_WIDTH));
             hex
+        }
+
+        /// Derives a decimal string representation of `self`, utilizing *Division-Remainder Method*.
+        pub fn to_dec_string(&self) -> String {
+            // passing this as param should suffice to enable arbitrary output bases
+            const BASE: u8 = 10;
+            let mut quotient = self.clone();
+            let mut digits: Vec<u8> = vec![];
+
+            while quotient != 0 {
+                let rem;
+                (quotient, rem) = quotient.div_with_rem(BASE as DigitT);
+                digits.push(rem.abs() as u8);
+            }
+            digits.reverse();
+
+            // init with sign if any
+            let mut result = if self.is_negative() {
+                String::from(Into::<char>::into(self.sign))
+            } else {
+                String::new()
+            };
+
+            for d in digits {
+                result.push_str(&d.to_string());
+            }
+            result
         }
 
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
