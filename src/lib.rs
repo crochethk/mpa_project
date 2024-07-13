@@ -10,6 +10,7 @@ pub mod mp_int {
             Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
         },
         slice::Iter,
+        str::from_utf8,
     };
 
     /// Type of elements representing individual digits. Directly related to the
@@ -33,6 +34,29 @@ pub mod mp_int {
     impl Sign {
         const PLUS: char = '+';
         const MINUS: char = '-';
+
+        /// Extracts the sign from the given `num_str`. If first char is not a sign,
+        /// `Sign::default()` is inferred.
+        ///
+        /// Note that `num_str` is not validated in any way.
+        ///
+        /// # Returns
+        /// A tuple containing the sign and a slice based on `num_str`
+        /// without the sign.
+        fn extract_from_str(mut num_str: &str) -> (Sign, &str) {
+            let first_char = match num_str.chars().next() {
+                Some(ch) => ch,
+                None => ' ',
+            };
+            let sign: Sign = match first_char.try_into() {
+                Ok(s) => {
+                    num_str = num_str.strip_prefix(first_char).unwrap();
+                    s
+                }
+                _ => Sign::default(),
+            };
+            (sign, num_str)
+        }
     }
 
     impl Not for Sign {
@@ -189,7 +213,7 @@ pub mod mp_int {
         ///     - init `quotient` with same width
         ///     - divide each `d` in `self.data`, in reverse order (i.e. starting with "MSB")
         ///         - calculate:
-        ///         ```
+        ///         ```plain
         ///         base = 2^digit_bits
         ///         dividend = last_r*base + d // "puts last remainder infront of next digit"
         ///         q, last_r = div_with_rem(divident, divisor)
@@ -247,21 +271,14 @@ pub mod mp_int {
         ///  - `Err(ParseError)` if:
         ///     - `width` was too short
         ///     - `num_str` was empty or contained invalid chars
-        pub fn from_str(mut num_str: &str, width: usize) -> Result<Self, ParseError> {
-            // Extract sign
-            let first_char = match num_str.chars().next() {
-                Some(ch) => ch,
-                None => return Err("provided decimal string (`num_str`) must be non-empty".into()),
-            };
-
-            let sign: Sign = match first_char.try_into() {
-                Ok(s) => {
-                    // remove sign before processing digits
-                    num_str = num_str.strip_prefix(first_char).unwrap();
-                    s
-                }
-                _ => Sign::default(),
-            };
+        pub fn from_dec_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+            if num_str.is_empty() {
+                return Err("`num_str` must be non-empty".into());
+            }
+            let (sign, num_str) = Sign::extract_from_str(num_str);
+            if num_str.is_empty() {
+                return Err("`num_str` must contain at least one digit after the sign".into());
+            }
 
             let decimals: Vec<u8> = match parse_to_digits(num_str) {
                 Ok(ds) => ds,
@@ -295,6 +312,64 @@ pub mod mp_int {
                 if has_overflowed {
                     return Err("speficfied bit width is too short for the given number".into());
                 }
+            }
+
+            result.sign = sign;
+            Ok(result)
+        }
+
+        /// Creates a MPint from a hexadecimal string number representation.
+        /// `num_str` should match the  pattern `(+|-)?[0-9A-Fa-f]+`.
+        /// Furthermore it shall start with the MSB and end with LSB.
+        ///
+        /// # Returns
+        ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
+        ///  - `Err(ParseError)` if:
+        ///     - `width` was too short
+        ///     - `num_str` was empty or contained invalid chars
+        pub fn from_hex_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+            const BITS_PER_HEX: usize = 4;
+            const HEX_PER_DIGIT_T: usize = DIGIT_BITS as usize / BITS_PER_HEX;
+
+            if num_str.is_empty() {
+                return Err("`given num_str` must be non-empty".into());
+            }
+            let (sign, num_str) = Sign::extract_from_str(num_str);
+            if num_str.is_empty() {
+                return Err("`num_str` must contain at least one digit after the sign".into());
+            }
+
+            // Remove leading '0'
+            let num_str = num_str.trim_start_matches('0');
+
+            let req_width = num_str.len() * BITS_PER_HEX as usize;
+            if req_width > width {
+                return Err("speficfied bit width is too short for the given number".into());
+            }
+
+            let mut result = MPint::new(width);
+
+            let num_str_bytes = num_str.as_bytes();
+            let step = HEX_PER_DIGIT_T;
+
+            let mut end = num_str_bytes.len();
+
+            // Parse `num_str` in "16-hex-digit" bites, starting with its LSB
+            for i in 0..result.len() {
+                if end == 0 {
+                    break;
+                }
+                let start = end.saturating_sub(step);
+
+                let digit_as_hex_str = from_utf8(&num_str_bytes[start..end]).unwrap();
+
+                // Parse hex-slice and write as internal digit
+                result[i] = match DigitT::from_str_radix(digit_as_hex_str, 16) {
+                    Ok(d) => d,
+                    Err(_) => return Err("`num_str` must be a valid hexadecimal".into()),
+                };
+
+                end = start;
             }
 
             result.sign = sign;
@@ -569,10 +644,8 @@ pub mod mp_int {
             }
 
             let result_sign = if self.sign == rhs.sign {
-                // same signs implicate positive result
                 Sign::Pos
             } else {
-                // different signs implicate negative result
                 Sign::Neg
             };
 
@@ -1314,6 +1387,109 @@ pub mod mp_int {
                     test_addition_correctness(b.clone(), -&a); // b + -a
                     test_addition_correctness(-b, a); //-b + a
                 }
+            }
+        }
+
+        mod test_from_hex_str {
+            use super::*;
+
+            #[test]
+            fn low_digit_max_1() {
+                let hex_str = "FFFFFFFFFFFFFFFF";
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+            }
+
+            #[test]
+            fn low_digit_max_2() {
+                let hex_str = concat!("F", "FFFFFFFFFFFFFFFF");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0xF]));
+            }
+
+            #[test]
+            fn high_digit_non_zero() {
+                let hex_str = concat!("ABCdEf0123456789", "0000000000000000");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0, 0xABCDEF0123456789]));
+            }
+
+            #[test]
+            fn normal_value_1() {
+                let hex_str = concat!("01", "0000000000000A00");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0xA00, 0x1]));
+            }
+
+            #[test]
+            fn with_sign_1() {
+                let hex_str = concat!("+", "FFFFFFFFFFFFFFFF");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+                let hex_str = concat!("-", "FFFFFFFFFFFFFFFF");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0]));
+            }
+
+            #[test]
+            fn with_sign_2() {
+                let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0xA]));
+            }
+
+            #[test]
+            fn small_value() {
+                let hex_str = "123";
+                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0x123, 0]));
+            }
+
+            #[test]
+            fn zero_1() {
+                let zero = Ok(mpint![0, 0]);
+                let hex_str = "-0";
+                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                let hex_str = "+0";
+                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                let hex_str = "0";
+                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+            }
+
+            #[test]
+            fn zero_2_long() {
+                let hex_str = "0000000000000000000000000000000000";
+                assert_eq!(MPint::from_hex_str(hex_str, 64), Ok(mpint![0]));
+            }
+
+            #[test]
+            fn failing_1() {
+                let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
+                assert!(MPint::from_hex_str(hex_str, 64).is_err());
+            }
+
+            #[test]
+            fn failing_2() {
+                let hex_str = "-";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+            }
+
+            #[test]
+            fn failing_3_empty() {
+                let hex_str = "";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+            }
+
+            #[test]
+            fn failing_4_whsp() {
+                let hex_str = "1230 ";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                let hex_str = " 1230";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                let hex_str = "1 230";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+            }
+
+            #[test]
+            fn failing_5_inv_chars() {
+                let hex_str = "1230-";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                let hex_str = "-x1230";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                let hex_str = "0x1230";
+                assert!(MPint::from_hex_str(hex_str, 128).is_err());
             }
         }
 

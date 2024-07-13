@@ -123,7 +123,7 @@ fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
         return UserInputResult::ExitCmd;
     }
 
-    match MPint::from_str(&input, args.width) {
+    match MPint::from_dec_str(&input, args.width) {
         Ok(x) => UserInputResult::Operand(x),
         Err(e) => {
             println!("{e}");
