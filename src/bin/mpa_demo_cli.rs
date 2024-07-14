@@ -30,12 +30,12 @@ struct Cli {
     #[arg(long, short)]
     seed: Option<u128>,
 
-    /// Manually specify operands (base 10) in a loop.
+    /// Manually specify operands in a loop.
     /// Enter `q` to quit.
     #[arg(long, short, conflicts_with_all(["test_count", "seed"]))]
     interactive: bool,
 
-    /// Base of the input in interactive mode. Output is hex regardless.
+    /// Base of the input and output in interactive mode.
     #[arg(long, short, conflicts_with_all(["test_count", "seed"]), default_value="10",
         value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
     base: String,
@@ -94,8 +94,16 @@ fn run_interactive_mode(args: &Cli) {
             UserInputResult::ExitCmd => break,
         };
 
-        println!(">>> Calculating <<<\n{}\n{}\n{}", lhs, args.operation, rhs);
-        println!(">>> Result <<<\n{}\n", args.operation.apply(lhs, rhs));
+        let base = u32::from_str(args.base.as_str()).unwrap();
+
+        let adapt_base: fn(&MPint) -> String = match base {
+            16 => MPint::to_hex_string,
+            10 => MPint::to_dec_string,
+            _ => panic!("illegal base"),
+        };
+
+        println!(">>> Calculating <<<\n{}\n{}\n{}", adapt_base(&lhs), args.operation, adapt_base(&rhs));
+        println!(">>> Result <<<\n{}\n", adapt_base(&args.operation.apply(lhs, rhs)));
     }
 
     println!("Good bye!");
@@ -120,7 +128,8 @@ fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
     match {
         match in_base {
             16 => MPint::from_hex_str(&input, args.width),
-            _ => MPint::from_dec_str(&input, args.width),
+            10 => MPint::from_dec_str(&input, args.width),
+            _ => panic!("illegal base"),
         }
     } {
         Ok(x) => UserInputResult::Operand(x),
