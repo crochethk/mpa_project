@@ -15,6 +15,6 @@ default-features = false
 features = []
 
 [lib]
-doctest = false
+doctest = true
 name = "mpa_lib"
 path = "src/lib.rs"
