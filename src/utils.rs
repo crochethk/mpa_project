@@ -14,7 +14,7 @@ use std::ops::{Div, Rem};
 /// - So it's safe to say, that in the worst-case the end result will be a
 /// saturated "u64 value + carry-bit"
 /// - Simplified example using a ficitonal u4:
-///     ```
+///     ```plain
 ///     Inputs: lhs=rhs=1111, carry=1
 ///
 ///             1111          1110 (r1)
