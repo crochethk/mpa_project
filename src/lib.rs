@@ -119,7 +119,7 @@ pub mod mp_int {
 
     impl PartialEq<DigitT> for MPint {
         fn eq(&self, other: &DigitT) -> bool {
-            self[0] == *other
+            self == &MPint::from_digit(*other, self.width())
         }
     }
 
