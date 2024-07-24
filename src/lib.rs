@@ -11,16 +11,10 @@ pub mod mp_int {
     pub use crate::mpint;
 
     use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
-    use std::{
-        cmp::Ordering,
-        fmt::Display,
-        mem::size_of,
-        ops::{
-            Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
-        },
-        slice::Iter,
-        str::from_utf8,
+    use std::ops::{
+        Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
     };
+    use std::{cmp::Ordering, fmt::Display, mem::size_of, slice::Iter, str::from_utf8};
 
     /// Type of elements representing individual digits. Directly related to the
     /// `const DIGIT_BITS`.
