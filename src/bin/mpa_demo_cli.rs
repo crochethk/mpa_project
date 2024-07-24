@@ -1,3 +1,12 @@
+//! # Demo CLI
+//!
+//! This CLI allows for manual testing of the multiple precision arithmetics implemented
+//! in `mpa_lib`.
+//!
+//! ## Usage
+//! Please refer to `mpa_demo_cli --help` for actual usage info.
+//!
+
 use clap::{Parser, ValueEnum};
 use mpa_lib::mp_int::*;
 use rand::{Rng, RngCore};
@@ -7,10 +16,6 @@ use std::{
     io::{self, stdin, Write as _},
     str::FromStr,
 };
-///!
-/// Demo CLI to manually test arithmetics on multiple-precision numbers implemented.
-/// Run `mpa_demo_cli --help` for usage info.
-///
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -102,7 +107,12 @@ fn run_interactive_mode(args: &Cli) {
             _ => panic!("illegal base"),
         };
 
-        println!(">>> Calculating <<<\n{}\n{}\n{}", adapt_base(&lhs), args.operation, adapt_base(&rhs));
+        println!(
+            ">>> Calculating <<<\n{}\n{}\n{}",
+            adapt_base(&lhs),
+            args.operation,
+            adapt_base(&rhs)
+        );
         println!(">>> Result <<<\n{}\n", adapt_base(&args.operation.apply(lhs, rhs)));
     }
 

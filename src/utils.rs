@@ -1,3 +1,8 @@
+//! # Utils
+//!
+//! This module contains some utility functions and structs, that are used within
+//! but are not inherently related to the library.
+//!
 use std::error::Error;
 use std::fmt::Display;
 use std::ops::{Div, Rem};
@@ -31,7 +36,6 @@ pub fn add_with_carry(lhs: u64, rhs: u64, mut carry: bool) -> (u64, bool) {
     (sum, carry || c)
 }
 
-/// !untested
 /// Simple Division with remainder, i.e. `a = q*b + r`, where `(q, r)` is the
 /// returned result.
 pub fn div_with_rem<T: Div<Output = T> + Rem<Output = T> + Copy>(a: T, b: T) -> (T, T) {

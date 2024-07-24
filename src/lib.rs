@@ -1,6 +1,11 @@
 pub mod utils;
 
 pub mod mp_int {
+    //! # Multiple Precision Integer Type
+    //!
+    //! This module implements the data structure and various operations for
+    //! arbitrary sized integers.
+    //!
     use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
     use std::{
         cmp::Ordering,

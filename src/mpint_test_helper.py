@@ -1,6 +1,11 @@
 """
-Usage: script.py [-h] [--base BASE=10] lhs {+,-,*,/} rhs res_to_verify
-Example: script.py 123 + 456 579
+# Verify integer arithmetic operations
+
+This script checks if the given result of an operation on integer operands
+matches the outcome produced by Python's implementation of the same operation.
+
+Usage: mpa_test_helper.py [-h] [--base BASE=10] lhs {+,-,*,/} rhs res_to_verify
+Example: mpa_test_helper.py 123 + 456 579
 """
 
 import sys, argparse
@@ -18,7 +23,7 @@ def test_operation_result(
     """
 
     # removes whitespace
-    rm_whspc = lambda s: "".join(s.split())
+    def rm_whspc(s): return "".join(s.split())
 
     try:
         lhs = int(rm_whspc(lhs), base)
@@ -47,6 +52,7 @@ def perform_operation(lhs: int, op: str, rhs: int) -> int:
         result = lhs // rhs
     return result
 
+
 def cmp_result_with_given(res_python, res_to_verify) -> tuple[bool, str]:
     """
     Compares the given with the python-calculated result.
@@ -68,7 +74,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='simple arithmetics tester',)
     parser.add_argument('--base', type=int, default=10, help="Input numbers base")
     parser.add_argument("lhs", type=str, help="First operand")
-    parser.add_argument("op", type=str, choices=["+","-","*","/"], help="Operator")
+    parser.add_argument("op", type=str, choices=["+", "-", "*", "/"], help="Operator")
     parser.add_argument("rhs", type=str, help="Second operand")
     parser.add_argument("res_to_verify", type=str, help="Result to be verified")
     args = parser.parse_args()
