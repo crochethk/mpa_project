@@ -6,6 +6,10 @@ pub mod mp_int {
     //! This module implements the data structure and various operations for
     //! arbitrary sized integers.
     //!
+
+    // allows importing the macro more conveniently
+    pub use crate::mpint;
+
     use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
     use std::{
         cmp::Ordering,
