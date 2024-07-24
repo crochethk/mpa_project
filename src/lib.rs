@@ -435,7 +435,7 @@ pub mod mp_int {
             let mut quotient = self.clone();
             let mut digits: Vec<u8> = vec![];
 
-            while quotient != 0 {
+            while quotient != 0 || digits.is_empty() {
                 let rem;
                 (quotient, rem) = quotient.div_with_rem(BASE as DigitT);
                 digits.push(rem.abs() as u8);
