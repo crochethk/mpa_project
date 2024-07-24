@@ -20,7 +20,7 @@ pub mod mp_int {
     /// `const DIGIT_BITS`.
     /// __DO NOT CHANGE WITHOUT CAUTION__
     pub type DigitT = u64;
-    /// Type double the width of `DigitT`, sometimes needed for intermediary results
+    /// Type double the width of `DigitT`, sometimes required for intermediary results
     type DoubleDigitT = u128;
 
     /// Number of bits used per digit in the internal number system.
@@ -107,25 +107,6 @@ pub mod mp_int {
         sign: Sign,
     }
 
-    impl PartialEq for MPint {
-        fn eq(&self, other: &Self) -> bool {
-            if self.len() != other.len() {
-                false
-            } else if self.sign != other.sign {
-                // different signs only eq when both are 0
-                self.is_zero() && other.is_zero()
-            } else {
-                self.data == other.data
-            }
-        }
-    }
-
-    impl PartialEq<DigitT> for MPint {
-        fn eq(&self, other: &DigitT) -> bool {
-            self == &MPint::from_digit(*other, self.width())
-        }
-    }
-
     pub trait CreateNewFrom<T> {
         /// Provides different constructor overloads
         fn new(src: T) -> Self;
@@ -206,7 +187,6 @@ pub mod mp_int {
             width.div_ceil(DIGIT_BITS as usize)
         }
 
-        /// Calculates quotient and remainder using the given _native_ integer
         /// Calculates quotient and remainder using the given _native_ integer divisor.
         ///
         /// # Footnote
@@ -791,6 +771,27 @@ pub mod mp_int {
             // // the number as a whole overflowed.
             // // Actually we could do this check in advance by checking where the last `1`
             // // is in the last bin and compare to `rhs` accordingly.
+        }
+    }
+
+    impl PartialEq<DigitT> for MPint {
+        fn eq(&self, other: &DigitT) -> bool {
+            self == &MPint::from_digit(*other, self.width())
+        }
+    }
+
+    // TODO if different WIDTHS are finally allowed:
+    // TODO     must be changed to manually compare each element of data
+    impl PartialEq for MPint {
+        fn eq(&self, other: &Self) -> bool {
+            if self.len() != other.len() {
+                false
+            } else if self.sign != other.sign {
+                // different signs only eq when both are 0
+                self.is_zero() && other.is_zero()
+            } else {
+                self.data == other.data
+            }
         }
     }
 
