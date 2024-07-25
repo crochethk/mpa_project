@@ -101,6 +101,7 @@ pub mod mp_int {
         }
     }
 
+    /// The core datatype for multiple precision integers.
     #[derive(Debug, Clone)]
     pub struct MPint {
         data: Vec<DigitT>,
@@ -162,11 +163,11 @@ pub mod mp_int {
         }
 
         /// Tries to in-place extend or truncate `self` to the specified bit-width.
-        /// Useful e.g. to adjust an instance to a multiplication result.
+        /// Useful e.g. to adjust another instance to a multiplication result.
         ///
         /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
         /// `Err(self)` containing the untouched instance is returned, if non-zero
-        /// bins had to be dropped to meet the desired `target_width`.
+        /// bins would have to be dropped to meet the desired `target_width`.
         pub fn try_set_width(mut self, target_width: usize) -> Result<Self, Self> {
             let new_bins_count = Self::width_to_bins_count(target_width);
             let old_bins_count = self.data.len();
@@ -245,7 +246,8 @@ pub mod mp_int {
             (quotient, last_r)
         }
 
-        /// Gets max number of digits (in regards to the internal radix).
+        /// Gets number of digits in regards to the internal radix.
+        /// Note that this includes trailing "0".
         pub fn len(&self) -> usize {
             self.data.len()
         }
@@ -362,7 +364,8 @@ pub mod mp_int {
             result
         }
 
-        /// Alias for `into_iter()`
+        /// Alias for `into_iter()`. Returns an iterator over the underlying digits
+        /// in _little-endian_ order.
         pub fn iter(&self) -> Iter<DigitT> {
             self.into_iter()
         }
@@ -375,6 +378,7 @@ pub mod mp_int {
             assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
         }
 
+        /// Returns the hexadecimal representation of this `MPint`.
         pub fn to_hex_string(&self) -> String {
             let mut hex: String = String::new();
             if self.is_negative() {
@@ -388,7 +392,8 @@ pub mod mp_int {
             hex
         }
 
-        /// Derives a decimal string representation of `self`, utilizing *Division-Remainder Method*.
+        /// Derives a decimal string representation of `self`, utilizing the
+        /// _Division-Remainder Method_.
         pub fn to_dec_string(&self) -> String {
             // passing this as param should suffice to enable arbitrary output bases
             const BASE: u8 = 10;
@@ -461,8 +466,11 @@ pub mod mp_int {
             self.data.iter().all(|d| *d == 0)
         }
 
-        /// Calculates the two's complement of the given number.
-        /// Note that the result will have an _inverted sign_.
+        /// Calculates the two's complement of the given number. This operation depends
+        /// on the underlying width and, by definition, the result is mathematicaly
+        /// compatible only with `MPint` of __same widths__.
+        ///
+        /// Note that the result will have an __inverted sign__.
         fn twos_complement_inplace(&mut self) {
             _ = self.not();
             let result_sign = !self.sign;
@@ -705,6 +713,7 @@ pub mod mp_int {
             self.data.rotate_left(n);
         }
 
+        /// Removes empty (i.e. `0`) bins from the end
         fn trim_empty_end(&mut self, min_len: usize) {
             // Get first non-zero digit index from the end
             let mut first_non_zero = 0;
