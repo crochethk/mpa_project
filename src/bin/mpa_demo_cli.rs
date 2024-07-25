@@ -169,7 +169,7 @@ fn run_randomized_mode(args: &Cli) {
     let mut header = String::new();
     _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
     _ = writeln!(header, "| - Mode: Random operands");
-    _ = writeln!(header, "| - Operands width: {} bits", MPint::new(args.width).width());
+    _ = writeln!(header, "| - Operands width: {} bits", MPint::new_with_width(args.width).width());
     _ = writeln!(header, "| - Test count: {}", args.test_count);
     _ = writeln!(header, "+---------------------------------------+");
     print!("{}", header);

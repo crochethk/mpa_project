@@ -112,23 +112,6 @@ pub mod mp_int {
         fn new(src: T) -> Self;
     }
 
-    impl CreateNewFrom<&Self> for MPint {
-        /// Creates new instance of similar width. Shorthand for `new(src.width())`.
-        fn new(src: &Self) -> Self {
-            Self::new(src.width())
-        }
-    }
-
-    impl CreateNewFrom<usize> for MPint {
-        /// Creates a new instance with the desired bit-width and initialized to `0`.
-        ///
-        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
-        fn new(width: usize) -> Self {
-            let bin_count = Self::width_to_bins_count(width);
-            let data = vec![0; bin_count];
-            Self::new(data)
-        }
-    }
 
     impl CreateNewFrom<Vec<DigitT>> for MPint {
         /// Creates new instance by consuming the given `digits` Vec. Each element of
@@ -151,6 +134,15 @@ pub mod mp_int {
     }
 
     impl MPint {
+        /// Creates a new instance with the desired bit-width and initialized to `0`.
+        ///
+        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
+        pub fn new_with_width(w: usize) -> Self {
+            let bin_count = Self::width_to_bins_count(w);
+            let data = vec![0; bin_count];
+            Self::new(data)
+        }
+
         /// Retrieves this number's current bit-width.
         pub fn width(&self) -> usize {
             self.data.len() * (DIGIT_BITS as usize)
@@ -212,7 +204,7 @@ pub mod mp_int {
         /// - When finished, adjust sign of quotient and remainder
         ///
         pub fn div_with_rem(&self, divisor: DigitT) -> (Self, i128) {
-            let mut quotient = Self::new(self);
+            let mut quotient = MPint::new_with_width(self.width());
 
             let divisor = divisor as DoubleDigitT;
             let mut last_r = 0 as DoubleDigitT;
@@ -277,7 +269,7 @@ pub mod mp_int {
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
-            let mut result = Self::new(width);
+            let mut result = Self::new_with_width(width);
             for d in decimals {
                 let mut pt_res1 = result.clone();
                 let mut pt_res2 = result.clone();
@@ -335,7 +327,7 @@ pub mod mp_int {
                 return Err("speficfied bit width is too short for the given number".into());
             }
 
-            let mut result = MPint::new(width);
+            let mut result = MPint::new_with_width(width);
 
             let num_str_bytes = num_str.as_bytes();
             let step = HEX_PER_DIGIT_T;
@@ -633,7 +625,7 @@ pub mod mp_int {
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
-            let mut mp_rhs = MPint::new(self.width());
+            let mut mp_rhs = MPint::new_with_width(self.width());
             mp_rhs[0] = rhs as DigitT;
             mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
             *self += mp_rhs;
@@ -682,7 +674,7 @@ pub mod mp_int {
             let operand_len = self.len();
             let max_new_width = self.width() * 2;
 
-            let mut end_product = MPint::new(max_new_width);
+            let mut end_product = MPint::new_with_width(max_new_width);
 
             // Calculate one result digit per iteration
             for i in 0..end_product.len() {
@@ -1466,7 +1458,7 @@ pub mod mp_int {
                 fn plus_minus_max() {
                     let a = mpint![D_MAX, D_MAX, D_MAX];
                     let b = -a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&b + &a, zero);
                 }
@@ -1474,7 +1466,7 @@ pub mod mp_int {
                 fn normal_values() {
                     let a = mpint![630, 801, 366, 345, 372];
                     let b = -a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&b + &a, zero);
                 }
@@ -1482,7 +1474,7 @@ pub mod mp_int {
                 fn both_zero() {
                     let a = mpint![0, 0, 0];
                     let b = a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&-&a + &-&b, zero);
                     assert_eq!(&a + &-&b, zero);
