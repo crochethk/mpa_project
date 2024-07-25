@@ -436,29 +436,43 @@ pub mod mp_int {
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
         /// # Returns
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
-        /// - `None` when operands are incompatible.
-        fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
-            if self.len() != other.len() {
-                return None;
+        fn cmp_abs(&self, other: &MPint) -> Ordering {
+            // Sort by "width"
+            let (wide, short) = if self.len() >= other.len() {
+                (self, other)
+            } else {
+                (other, self)
+            };
+            let wide_is_self = std::ptr::eq(self, wide);
+
+            // Check extra part in wider num
+            for i in short.len()..wide.len() {
+                if wide[i] != 0 {
+                    // → wide > short
+                    return if wide_is_self {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Less
+                    };
+                }
             }
 
-            let mut self_other_cmp = Ordering::Equal;
-            // Compare bins/digits
-            for (self_d, other_d) in self.iter().zip(other).rev() {
-                if self_d == other_d {
-                    continue;
-                } else {
+            // Compare overlapping digits (starting with most significant)
+            let mut self_other_ord = Ordering::Equal;
+
+            for i in (0..short.len()).rev() {
+                let (self_d, other_d) = (self[i], other[i]);
+                if self_d != other_d {
                     // On difference, assign matching relation and exit loop.
                     if self_d > other_d {
-                        self_other_cmp = Ordering::Greater;
+                        self_other_ord = Ordering::Greater;
                     } else {
-                        self_other_cmp = Ordering::Less;
+                        self_other_ord = Ordering::Less;
                     }
                     break;
                 }
             }
-
-            Some(self_other_cmp)
+            self_other_ord
         }
 
         fn is_zero(&self) -> bool {
@@ -511,7 +525,7 @@ pub mod mp_int {
                     (rhs, self)
                 };
 
-                let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
+                let pos_lt_neg = pos.cmp_abs(&neg) == Ordering::Less;
 
                 neg.twos_complement_inplace();
 
@@ -775,33 +789,27 @@ pub mod mp_int {
     }
 
     impl PartialEq<DigitT> for MPint {
-        fn eq(&self, other: &DigitT) -> bool {
-            self == &MPint::from_digit(*other, self.width())
+        fn eq(&self, digit: &DigitT) -> bool {
+            self.partial_cmp(digit) == Some(Ordering::Equal)
         }
     }
 
-    // TODO if different WIDTHS are finally allowed:
-    // TODO     must be changed to manually compare each element of data
     impl PartialEq for MPint {
         fn eq(&self, other: &Self) -> bool {
-            if self.len() != other.len() {
-                false
-            } else if self.sign != other.sign {
-                // different signs only eq when both are 0
-                self.is_zero() && other.is_zero()
-            } else {
-                self.data == other.data
-            }
+            self.partial_cmp(other) == Some(Ordering::Equal)
+        }
+    }
+
+    impl PartialOrd<DigitT> for MPint {
+        fn partial_cmp(&self, digit: &DigitT) -> Option<Ordering> {
+            self.partial_cmp(&mpint![*digit])
         }
     }
 
     /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
+    /// `==` is implemented with `PartialEq` trait.
     impl PartialOrd for MPint {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            if self.len() != other.len() {
-                return None;
-            }
-
             // Treat possible +/-0 as equal
             if self.is_zero() && other.is_zero() {
                 return Some(Ordering::Equal);
@@ -815,7 +823,7 @@ pub mod mp_int {
             }
 
             // Compare absolute values
-            let mut self_other_cmp = self.cmp_abs(other)?;
+            let mut self_other_cmp = self.cmp_abs(other);
 
             // Invert relation for negative numbers.
             assert!(self.sign == other.sign, "expected equal signs but were different");
@@ -1057,6 +1065,9 @@ pub mod mp_int {
             }
         }
 
+        /// Tests the different comparisson operators of `MPint`.
+        /// `PartialEq` ("==") is tested implicitly tested here, since its impl
+        /// simply passes calls to `partial_cmp`.
         mod test_partial_cmp {
             use super::*;
             use Ordering::{Equal, Greater, Less};
@@ -1170,6 +1181,81 @@ pub mod mp_int {
                 assert_eq!(z_pos1.partial_cmp(&z_neg1), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
+            }
+
+            #[test]
+            fn diff_widths_equality() {
+                {
+                    // explicitly tests "PartialEq"
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 0, 0, 0]);
+                    assert!(a == b);
+                    assert!(b == a);
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3], mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3, 0], mpint![1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3, 0], mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (-mpint![0, 1, 2, 3, 0], -mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+            }
+
+            #[test]
+            fn diff_widths_lt_gt() {
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 4]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3, 0], mpint![0, 1, 2, 3, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 0, 3, 2, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 1, 2, 3]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+            }
+
+            #[test]
+            fn cmp_single_digit() {
+                let a = mpint![123, 0];
+                let b = mpint![12, 0];
+                let c = mpint![42, 0];
+                let d = mpint![0, 42];
+                let digit: DigitT = 42;
+
+                assert_eq!(a.partial_cmp(&digit), Some(Greater));
+                assert_eq!((-a).partial_cmp(&digit), Some(Less));
+                assert_eq!(b.partial_cmp(&digit), Some(Less));
+                assert_eq!((-b).partial_cmp(&digit), Some(Less));
+                assert_eq!(c.partial_cmp(&digit), Some(Equal));
+                assert_eq!(d.partial_cmp(&digit), Some(Greater));
             }
         }
 
