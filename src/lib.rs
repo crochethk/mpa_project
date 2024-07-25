@@ -483,10 +483,16 @@ pub mod mp_int {
 
         /// Helper function.
         /// Adds two number's bins and returns whether the most significant bin produced a carry.
-        /// Note that **`self` keeps its sign**, regardless of `other`'s sign.
+        /// # Note
+        /// - Both numbers shall have the __same width__.
+        /// - `self` __keeps its sign__, regardless of `other`'s sign.
+        ///
+        /// # Returns
+        /// - A `bool` representing the "Carry-Out" of the adder.
         fn carry_ripple_add_bins_inplace(&mut self, other: &MPint) -> bool {
-            let mut carry = false;
+            self.assert_same_width(other);
 
+            let mut carry = false;
             for i in 0..other.len() {
                 let digit: DigitT;
                 (digit, carry) = add_with_carry(self[i], other[i], carry);
