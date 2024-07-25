@@ -112,6 +112,19 @@ pub mod mp_int {
         fn new(src: T) -> Self;
     }
 
+    impl CreateNewFrom<u128> for MPint {
+        /// Creates new instance representing the given native integer.
+        fn new(mut num: u128) -> Self {
+            let mut res_data = vec![0; Self::width_to_bins_count(128 as usize)];
+
+            for i in 0..res_data.len() {
+                res_data[i] = num as DigitT;
+                num >>= DIGIT_BITS;
+            }
+
+            Self::new(res_data)
+        }
+    }
 
     impl CreateNewFrom<Vec<DigitT>> for MPint {
         /// Creates new instance by consuming the given `digits` Vec. Each element of
@@ -237,12 +250,6 @@ pub mod mp_int {
             self.data.len()
         }
 
-        pub fn from_digit(digit: DigitT, width: usize) -> Self {
-            let mut num = Self::new(width);
-            num[0] = digit;
-            num
-        }
-
         /// Creates new number with _at least_ `width` bits using the given
         /// decimal string `num_str`. First character may be a sign (`+`/`-`).
         ///
@@ -287,7 +294,9 @@ pub mod mp_int {
                 result = pt_res1;
 
                 // result += d as DigitT;
-                has_overflowed |= result.overflowing_add(MPint::from_digit(d as DigitT, width));
+                let mut mp_d = Self::new_with_width(width);
+                mp_d[0] = d as DigitT;
+                has_overflowed |= result.overflowing_add(mp_d);
 
                 if has_overflowed {
                     return Err("speficfied bit width is too short for the given number".into());
@@ -618,16 +627,14 @@ pub mod mp_int {
     impl AddAssign<DigitT> for MPint {
         /// Inplace `+=` operator for `DigitT` right-hand side.
         fn add_assign(&mut self, rhs: DigitT) {
-            *self += Self::from_digit(rhs, self.width());
+            *self += mpint![rhs];
         }
     }
 
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
-            let mut mp_rhs = MPint::new_with_width(self.width());
-            mp_rhs[0] = rhs as DigitT;
-            mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
+            let mp_rhs = MPint::new(rhs);
             *self += mp_rhs;
         }
     }
@@ -1306,17 +1313,17 @@ pub mod mp_int {
             #[test]
             fn zero_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(0, b.width());
+                let a = mpint![0, 0, 0, 0, 0, 0];
                 test_mul_correctness(a, b);
                 let a = mpint![0, 9, 8, 7, 6, 0];
-                let b = MPint::from_digit(0, a.width());
+                let b = mpint![0, 0, 0, 0, 0, 0];
                 test_mul_correctness(a, b);
             }
 
             #[test]
             fn one_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(1, b.width());
+                let a = mpint![1, 0, 0, 0, 0, 0];
                 test_mul_correctness(a.clone(), b.clone());
 
                 assert_eq!(
@@ -1331,7 +1338,7 @@ pub mod mp_int {
                 );
 
                 let c = mpint![0, 9, 8, 7, 6, 0];
-                let d = MPint::from_digit(1, c.width());
+                let d = mpint![1, 0, 0, 0, 0, 0];
                 test_mul_correctness(c.clone(), d.clone());
                 test_mul_correctness(-a, b);
                 test_mul_correctness(c, -d);
