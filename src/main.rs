@@ -15,14 +15,12 @@ fn main() {
 
     // from_str
     let num_str = "1234";
-    let width = 123;
-    let num = MPint::from_dec_str(num_str, width).unwrap();
-    println!("{:?}", num); // >>> MPint { width: 128, data: [1234, 0], sign: Pos }
+    let num = MPint::from_dec_str(num_str).unwrap();
+    println!("{:?}", num); // >>> MPint { data: [1234, 0], sign: Pos }
     println!("{}", num); // >>> 000000000000000000000000000004D2
 
     let num_str = "-1234";
-    let width = 123;
-    let num = MPint::from_dec_str(num_str, width).unwrap();
-    println!("{:?}", num); // >>> MPint { width: 128, data: [1234, 0], sign: Neg }
+    let num = MPint::from_dec_str(num_str).unwrap();
+    println!("{:?}", num); // >>> MPint { data: [1234, 0], sign: Neg }
     println!("{}", num); // >>> -000000000000000000000000000004D2
 }

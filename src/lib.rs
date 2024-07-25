@@ -10,7 +10,7 @@ pub mod mp_int {
     // allows importing the macro more conveniently
     pub use crate::mpint;
 
-    use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
+    use crate::utils::*;
     use std::ops::{
         Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
     };
@@ -250,15 +250,14 @@ pub mod mp_int {
             self.data.len()
         }
 
-        /// Creates new number with _at least_ `width` bits using the given
-        /// decimal string `num_str`. First character may be a sign (`+`/`-`).
+        /// Creates new `MPint` from the given decimal string `num_str`.
+        /// Other than the first character, which may be a sign (`+`/`-`), only
+        /// decimal digits are allowed inside `num_str`.
         ///
         /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
-        ///  - `Err(ParseError)` if:
-        ///     - `width` was too short
-        ///     - `num_str` was empty or contained invalid chars
-        pub fn from_dec_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+        ///  - `Err(ParseError)`: if `num_str` was empty or contained invalid chars
+        pub fn from_dec_str(num_str: &str) -> Result<Self, ParseError> {
             if num_str.is_empty() {
                 return Err("`num_str` must be non-empty".into());
             }
@@ -276,31 +275,21 @@ pub mod mp_int {
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
-            let mut result = Self::new_with_width(width);
+            let mut result = Self::new_with_width(approx_bit_width(decimals.len()));
             for d in decimals {
                 let mut pt_res1 = result.clone();
                 let mut pt_res2 = result.clone();
-                let mut has_overflowed = false;
 
                 // Multiply last result by 10:
                 // (2*2*2*x + 2*x == 10*x)
                 pt_res1 <<= 3;
-                has_overflowed |= pt_res1 < result;
                 pt_res2 <<= 1;
-                has_overflowed |= pt_res2 < result;
 
                 // result = pt_res1 + pt_res2;
-                has_overflowed |= pt_res1.overflowing_add(pt_res2);
+                pt_res1 += pt_res2;
                 result = pt_res1;
 
-                // result += d as DigitT;
-                let mut mp_d = Self::new_with_width(width);
-                mp_d[0] = d as DigitT;
-                has_overflowed |= result.overflowing_add(mp_d);
-
-                if has_overflowed {
-                    return Err("speficfied bit width is too short for the given number".into());
-                }
+                result += d as DigitT
             }
 
             result.sign = sign;
@@ -757,6 +746,11 @@ pub mod mp_int {
 
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPint {
+        /// Performs the <<= operation.
+        ///
+        /// # Panics
+        /// Alike native integer implementations, when trying to shift more than
+        /// the current bit-width.
         fn shl_assign(&mut self, mut shift_distance: u32) {
             assert!((shift_distance as usize) < self.width());
             const MAX_STEP: u32 = DIGIT_BITS - 1;
@@ -779,11 +773,6 @@ pub mod mp_int {
 
                 shift_distance -= sh_step;
             }
-
-            // // here we could panic! if `overflow != 0`, which would mean that
-            // // the number as a whole overflowed.
-            // // Actually we could do this check in advance by checking where the last `1`
-            // // is in the last bin and compare to `rhs` accordingly.
         }
     }
 

@@ -7,6 +7,12 @@ use std::error::Error;
 use std::fmt::Display;
 use std::ops::{Div, Rem};
 
+/// Returns the _minimal_ bit width required to represent all possible numbers
+/// build from `dec_width` decimal digits.
+pub fn approx_bit_width(dec_width: usize) -> usize {
+    (std::f64::consts::LOG2_10 * dec_width as f64).ceil() as usize
+}
+
 /// Basically a full adder for `u64`
 ///
 /// # Explanation
