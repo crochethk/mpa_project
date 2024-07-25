@@ -137,7 +137,7 @@ fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
 
     match {
         match in_base {
-            16 => MPint::from_hex_str(&input, args.width),
+            16 => MPint::from_hex_str(&input),
             10 => MPint::from_dec_str(&input),
             _ => panic!("illegal base"),
         }

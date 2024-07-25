@@ -302,10 +302,8 @@ pub mod mp_int {
         ///
         /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
-        ///  - `Err(ParseError)` if:
-        ///     - `width` was too short
-        ///     - `num_str` was empty or contained invalid chars
-        pub fn from_hex_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+        ///  - `Err(ParseError)`: if `num_str` was empty or contained invalid chars
+        pub fn from_hex_str(num_str: &str) -> Result<Self, ParseError> {
             const BITS_PER_HEX: usize = 4;
             const HEX_PER_DIGIT_T: usize = DIGIT_BITS as usize / BITS_PER_HEX;
 
@@ -321,15 +319,10 @@ pub mod mp_int {
             let num_str = num_str.trim_start_matches('0');
 
             let req_width = num_str.len() * BITS_PER_HEX as usize;
-            if req_width > width {
-                return Err("speficfied bit width is too short for the given number".into());
-            }
-
-            let mut result = MPint::new_with_width(width);
+            let mut result = MPint::new_with_width(req_width);
 
             let num_str_bytes = num_str.as_bytes();
             let step = HEX_PER_DIGIT_T;
-
             let mut end = num_str_bytes.len();
 
             // Parse `num_str` in "16-hex-digit" bites, starting with its LSB
@@ -338,7 +331,6 @@ pub mod mp_int {
                     break;
                 }
                 let start = end.saturating_sub(step);
-
                 let digit_as_hex_str = from_utf8(&num_str_bytes[start..end]).unwrap();
 
                 // Parse hex-slice and write as internal digit
@@ -1506,100 +1498,94 @@ pub mod mp_int {
             #[test]
             fn low_digit_max_1() {
                 let hex_str = "FFFFFFFFFFFFFFFF";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX]));
             }
 
             #[test]
             fn low_digit_max_2() {
                 let hex_str = concat!("F", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0xF]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX, 0xF]));
             }
 
             #[test]
             fn high_digit_non_zero() {
                 let hex_str = concat!("ABCdEf0123456789", "0000000000000000");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0, 0xABCDEF0123456789]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0, 0xABCDEF0123456789]));
             }
 
             #[test]
             fn normal_value_1() {
                 let hex_str = concat!("01", "0000000000000A00");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0xA00, 0x1]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0xA00, 0x1]));
             }
 
             #[test]
             fn with_sign_1() {
                 let hex_str = concat!("+", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX]));
                 let hex_str = concat!("-", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(-mpint![DigitT::MAX]));
             }
 
             #[test]
             fn with_sign_2() {
                 let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0xA]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(-mpint![DigitT::MAX, 0xA]));
             }
 
             #[test]
             fn small_value() {
                 let hex_str = "123";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0x123, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0x123]));
             }
 
             #[test]
             fn zero_1() {
-                let zero = Ok(mpint![0, 0]);
+                let zero = Ok(mpint![0]);
                 let hex_str = "-0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
                 let hex_str = "+0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
                 let hex_str = "0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
             }
 
             #[test]
             fn zero_2_long() {
                 let hex_str = "0000000000000000000000000000000000";
-                assert_eq!(MPint::from_hex_str(hex_str, 64), Ok(mpint![0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0]));
             }
 
             #[test]
-            fn failing_1() {
-                let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
-                assert!(MPint::from_hex_str(hex_str, 64).is_err());
-            }
-
-            #[test]
-            fn failing_2() {
+            fn fail_2_empty_after_sign() {
                 let hex_str = "-";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_3_empty() {
+            fn fail_3_empty() {
                 let hex_str = "";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_4_whsp() {
+            fn fail_4_whsp() {
                 let hex_str = "1230 ";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = " 1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "1 230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_5_inv_chars() {
+            fn fail_5_inv_chars() {
                 let hex_str = "1230-";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "-x1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "0x1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
         }
 
