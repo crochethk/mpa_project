@@ -1,4 +1,4 @@
 fn_single_line = true
 use_small_heuristics = "Off"
 struct_lit_width = 18              # default: 18; related to use_small_heuristics
-single_line_if_else_max_width = 50 # default: 50; related to use_small_heuristics
+single_line_if_else_max_width = 90 # default: 50; related to use_small_heuristics

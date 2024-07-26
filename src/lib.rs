@@ -698,25 +698,16 @@ pub mod mp_int {
         /// This uses a "Product-Scanning" approach, which means we directly
         /// calculate each result digit one at a time.
         fn extending_prod_scan_mul(&self, rhs: &Self) -> Self {
-            // ~~~~ Preamble ~~~~
-            assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
-
             // Zero short circuit
-            if self.is_zero() {
-                return self.clone();
-            } else if rhs.is_zero() {
-                return rhs.clone();
+            if self.is_zero() || rhs.is_zero() {
+                return mpint![0];
             }
 
-            let result_sign = if self.sign == rhs.sign {
-                Sign::Pos
-            } else {
-                Sign::Neg
-            };
+            let result_sign = if self.sign == rhs.sign { Sign::Pos } else { Sign::Neg };
 
             // ~~~~ Main ~~~~
-            let operand_len = self.len();
-            let max_new_width = self.width() * 2;
+            let operand_len = self.len().max(rhs.len());
+            let max_new_width = self.width() + rhs.width();
 
             let mut end_product = MPint::new_with_width(max_new_width);
 
@@ -736,8 +727,10 @@ pub mod mp_int {
                         // i.e. in MSB-half of the end product
                         continue;
                     }
-                    let a_j = self[j] as DoubleDigitT;
-                    let b_k = rhs[k] as DoubleDigitT;
+
+                    // Simulates "0-digit" on different width operands
+                    let a_j = *self.data.get(j).unwrap_or(&0) as DoubleDigitT;
+                    let b_k = *rhs.data.get(k).unwrap_or(&0) as DoubleDigitT;
 
                     let prod_i_jk: DoubleDigitT = a_j * b_k;
 
@@ -751,7 +744,7 @@ pub mod mp_int {
             }
 
             // ~~~~ Epilog ~~~~
-            end_product.trim_empty_end(self.len());
+            end_product.trim_empty_end(1);
             end_product.sign = result_sign;
 
             end_product
@@ -1367,10 +1360,12 @@ pub mod mp_int {
             fn zero_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
                 let a = mpint![0, 0, 0, 0, 0, 0];
-                test_mul_correctness(a, b);
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b, a);
                 let a = mpint![0, 9, 8, 7, 6, 0];
-                let b = mpint![0, 0, 0, 0, 0, 0];
-                test_mul_correctness(a, b);
+                let b = -mpint![0, 0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b, a);
             }
 
             #[test]
@@ -1409,6 +1404,42 @@ pub mod mp_int {
                 let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
                 let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
                 test_mul_correctness(a.clone(), b.clone());
+            }
+
+            #[test]
+            fn diff_widths_1() {
+                let a = mpint![0, 9, 8, 7];
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                test_mul_correctness(a, b);
+                let a = mpint![0, 9, 0, 8, 7, 6];
+                let b = mpint![100, 10, 1];
+                test_mul_correctness(a, b);
+                let a = mpint![0, 9, 8, 7, 6, 0];
+                let b = mpint![100];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b.clone(), a.clone());
+                let a = -mpint![0];
+                let b = mpint![1, 2, 3];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b.clone(), a.clone());
+            }
+
+            #[test]
+            fn test_outcome_width() {
+                let a = mpint![1, 2, 3, 0];
+                let b = mpint![10, 0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 3);
+                assert_eq!((&b * &a).len(), 3);
+                let a = mpint![D_MAX];
+                let b = a.clone();
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 2);
+                let a = mpint![1, 2, 3];
+                let b = mpint![0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 1);
+                assert_eq!((&b * &a).len(), 1);
             }
         }
 
