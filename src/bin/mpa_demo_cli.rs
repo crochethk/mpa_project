@@ -4,8 +4,46 @@
 //! in `mpa_lib`.
 //!
 //! ## Usage
-//! Please refer to `mpa_demo_cli --help` for actual usage info.
 //!
+//! There are two modes. Both have in common, that the user must specify the
+//! operation (e.g. "add").
+//!
+//! ### Random test operations mode
+//!
+//! This mode is meant to automatically generate and simulate a number of runs of
+//! a given operation type, on random operands.
+//!
+//! There are two randomized aspects here:
+//! - the operands' `width`s
+//! - the operand value within that random width.
+//!
+//! The width range can be adjusted by specifying the lower and upper boundaries,
+//! so that then `[min_width ≤ width ≤ max_width]`. You can also set a particular
+//! width by specify `min_width == max_width`.
+//!
+//! #### Example
+//!
+//! - Run 2 random `add` operations _(using `cargo`)_:
+//!     ```shell
+//!     cargo run --bin cli -- add -b 10 -n 2
+//!     ```
+//!
+//! ### Interactive mode
+//!
+//! This mode starts an "evaluation loop", where you can manually specify the
+//! operands and apply the chosen operation.
+//!
+//! The `base` for operands and result output can be set to either `10` or `16`.
+//!
+//! #### Example
+//!
+//! - Multiply in interactive mode with hexadecimal base _(using `cargo`)_:
+//!     ```shell
+//!     cargo run --bin cli -- mul -i --base 16
+//!     ```
+//!
+//!
+//! Please refer to `cli --help` for further usage info.
 
 use clap::{Parser, ValueEnum};
 use mpa_lib::mp_int::*;
@@ -14,40 +52,45 @@ use rand_pcg::Pcg64Mcg;
 use std::{
     fmt::{Display, Write as _},
     io::{self, stdin, Write as _},
+    ops::RangeInclusive,
     str::FromStr,
 };
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
-struct Cli {
+pub struct Cli {
     #[arg(value_enum)]
     operation: Operation,
 
-    /// Bit-width of operands to perform tests with
-    #[arg(long, short, default_value_t = 256)]
-    width: usize,
+    /// Lower bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 64)]
+    min_width: usize,
 
-    /// Number of operations to perform
-    #[arg(long, short('n'), default_value_t = 10)]
+    /// Upper bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 512)]
+    max_width: usize,
+
+    /// Number of test operations to perform
+    #[arg(long, short('n'), default_value_t = 5)]
     test_count: usize,
 
     /// RNG seed (128 bit integer) used for random operands [default: random]
     #[arg(long, short)]
     seed: Option<u128>,
 
-    /// Manually specify operands in a loop.
+    /// Interactive mode. Allows manually specify operands in a loop.
     /// Enter `q` to quit.
-    #[arg(long, short, conflicts_with_all(["test_count", "seed"]))]
+    #[arg(long, short, conflicts_with_all([ "min_width", "max_width", "test_count", "seed"]))]
     interactive: bool,
 
     /// Base of the input and output in interactive mode.
-    #[arg(long, short, conflicts_with_all(["test_count", "seed"]), default_value="10",
+    #[arg(long, short, conflicts_with_all([ "min_width", "max_width", "test_count", "seed"]), default_value="10",
         value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
     base: String,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
-enum Operation {
+pub enum Operation {
     Add,
     Sub,
     Mul,
@@ -86,6 +129,14 @@ fn main() {
 const EXIT_CMD: &str = "q";
 fn run_interactive_mode(args: &Cli) {
     println!("Enter decimal operand, then hit RETURN");
+
+    let base = u32::from_str(args.base.as_str()).unwrap();
+    let to_base_string: fn(&MPint) -> String = match base {
+        16 => MPint::to_hex_string,
+        10 => MPint::to_dec_string,
+        _ => panic!("illegal base"),
+    };
+
     loop {
         let lhs = match get_operand_from_user(args, "lhs: ") {
             UserInputResult::Operand(x) => x,
@@ -99,21 +150,13 @@ fn run_interactive_mode(args: &Cli) {
             UserInputResult::ExitCmd => break,
         };
 
-        let base = u32::from_str(args.base.as_str()).unwrap();
-
-        let adapt_base: fn(&MPint) -> String = match base {
-            16 => MPint::to_hex_string,
-            10 => MPint::to_dec_string,
-            _ => panic!("illegal base"),
-        };
-
         println!(
             ">>> Calculating <<<\n{}\n{}\n{}",
-            adapt_base(&lhs),
+            to_base_string(&lhs),
             args.operation,
-            adapt_base(&rhs)
+            to_base_string(&rhs)
         );
-        println!(">>> Result <<<\n{}\n", adapt_base(&args.operation.apply(lhs, rhs)));
+        println!(">>> Result <<<\n{}\n", to_base_string(&args.operation.apply(lhs, rhs)));
     }
 
     println!("Good bye!");
@@ -169,7 +212,8 @@ fn run_randomized_mode(args: &Cli) {
     let mut header = String::new();
     _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
     _ = writeln!(header, "| - Mode: Random operands");
-    _ = writeln!(header, "| - Operands width: {} bits", MPint::new_with_width(args.width).width());
+    _ = writeln!(header, "| - min_width: {} bits", MPint::new_with_width(args.min_width).width());
+    _ = writeln!(header, "| - max_width: {} bits", MPint::new_with_width(args.max_width).width());
     _ = writeln!(header, "| - Test count: {}", args.test_count);
     _ = writeln!(header, "+---------------------------------------+");
     print!("{}", header);
@@ -183,8 +227,9 @@ fn run_randomized_mode(args: &Cli) {
     let mut test_cnt = args.test_count;
     while test_cnt > 0 {
         // Get random operands
-        let lhs = random_mpint(&mut rng, args.width);
-        let rhs = random_mpint(&mut rng, args.width);
+        let width_range = args.min_width..=args.max_width;
+        let lhs = random_mpint(&mut rng, width_range.clone());
+        let rhs = random_mpint(&mut rng, width_range);
 
         let mut str_buff = String::new();
         _ = writeln!(str_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
@@ -200,7 +245,8 @@ fn run_randomized_mode(args: &Cli) {
     }
 }
 
-fn random_mpint<R: RngCore>(rng: &mut R, width: usize) -> MPint {
+fn random_mpint<R: RngCore>(rng: &mut R, width_range: RangeInclusive<usize>) -> MPint {
+    let width = rng.gen_range(width_range);
     let mut bins = vec![0 as DigitT; MPint::width_to_bins_count(width)];
     rng.fill(&mut bins[..]);
 
