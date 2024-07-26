@@ -394,22 +394,15 @@ pub mod mp_int {
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
         fn cmp_abs(&self, other: &MPint) -> Ordering {
             // Sort by "width"
-            let (wide, short) = if self.len() >= other.len() {
-                (self, other)
-            } else {
-                (other, self)
-            };
+            let (wide, short) =
+                if self.len() >= other.len() { (self, other) } else { (other, self) };
             let wide_is_self = std::ptr::eq(self, wide);
 
             // Check extra part in wider num
             for i in short.len()..wide.len() {
                 if wide[i] != 0 {
                     // → wide > short
-                    return if wide_is_self {
-                        Ordering::Greater
-                    } else {
-                        Ordering::Less
-                    };
+                    return if wide_is_self { Ordering::Greater } else { Ordering::Less };
                 }
             }
 
