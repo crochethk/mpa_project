@@ -347,10 +347,6 @@ pub mod mp_int {
             self.sign == Sign::Neg
         }
 
-        fn assert_same_width(&self, rhs: &MPint) {
-            assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
-        }
-
         /// Returns the hexadecimal representation of this `MPint`.
         pub fn to_hex_string(&self) -> String {
             let mut hex: String = String::new();
@@ -469,7 +465,7 @@ pub mod mp_int {
         /// # Panics
         /// - When given numbers have unequal widths.
         fn carry_ripple_add_bins_inplace(&mut self, other: &MPint) -> bool {
-            self.assert_same_width(other);
+            assert_eq!(self.width(), other.width(), "operands must have equal widths");
 
             let mut carry = false;
             for i in 0..other.len() {
@@ -703,7 +699,7 @@ pub mod mp_int {
         /// calculate each result digit one at a time.
         fn extending_prod_scan_mul(&self, rhs: &Self) -> Self {
             // ~~~~ Preamble ~~~~
-            self.assert_same_width(rhs);
+            assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
 
             // Zero short circuit
             if self.is_zero() {
