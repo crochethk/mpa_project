@@ -682,7 +682,7 @@ pub mod mp_int {
         /// Performs the `*` operation, potentially extending the bit-width. Therefore,
         /// the result's width `w` will be in the range `self.width() ≤ w ≤ 2*self.width()`.
         fn mul(self, rhs: Self) -> Self::Output {
-            self.extending_prod_scan_mul(rhs)
+            self.prod_scan_mul(rhs)
         }
     }
 
@@ -690,7 +690,7 @@ pub mod mp_int {
         /// Multiplies two `MPint`, extending the width as necessary.
         /// This uses a "Product-Scanning" approach, which means we directly
         /// calculate each result digit one at a time.
-        fn extending_prod_scan_mul(&self, rhs: &Self) -> Self {
+        fn prod_scan_mul(&self, rhs: &Self) -> Self {
             // Zero short circuit
             if self.is_zero() || rhs.is_zero() {
                 return mpint![0];
