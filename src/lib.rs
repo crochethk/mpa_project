@@ -10,23 +10,17 @@ pub mod mp_int {
     // allows importing the macro more conveniently
     pub use crate::mpint;
 
-    use crate::utils::{add_with_carry, div_with_rem, parse_to_digits, ParseError};
-    use std::{
-        cmp::Ordering,
-        fmt::Display,
-        mem::size_of,
-        ops::{
-            Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
-        },
-        slice::Iter,
-        str::from_utf8,
+    use crate::utils::*;
+    use std::ops::{
+        Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Not, Rem, ShlAssign, Sub, SubAssign,
     };
+    use std::{cmp::Ordering, fmt::Display, mem::size_of, slice::Iter, str::from_utf8};
 
     /// Type of elements representing individual digits. Directly related to the
     /// `const DIGIT_BITS`.
     /// __DO NOT CHANGE WITHOUT CAUTION__
     pub type DigitT = u64;
-    /// Type double the width of `DigitT`, sometimes needed for intermediary results
+    /// Type double the width of `DigitT`, sometimes required for intermediary results
     type DoubleDigitT = u128;
 
     /// Number of bits used per digit in the internal number system.
@@ -107,29 +101,11 @@ pub mod mp_int {
         }
     }
 
+    /// The core datatype for multiple precision integers.
     #[derive(Debug, Clone)]
     pub struct MPint {
         data: Vec<DigitT>,
         sign: Sign,
-    }
-
-    impl PartialEq for MPint {
-        fn eq(&self, other: &Self) -> bool {
-            if self.len() != other.len() {
-                false
-            } else if self.sign != other.sign {
-                // different signs only eq when both are 0
-                self.is_zero() && other.is_zero()
-            } else {
-                self.data == other.data
-            }
-        }
-    }
-
-    impl PartialEq<DigitT> for MPint {
-        fn eq(&self, other: &DigitT) -> bool {
-            self == &MPint::from_digit(*other, self.width())
-        }
     }
 
     pub trait CreateNewFrom<T> {
@@ -137,21 +113,17 @@ pub mod mp_int {
         fn new(src: T) -> Self;
     }
 
-    impl CreateNewFrom<&Self> for MPint {
-        /// Creates new instance of similar width. Shorthand for `new(src.width())`.
-        fn new(src: &Self) -> Self {
-            Self::new(src.width())
-        }
-    }
+    impl CreateNewFrom<u128> for MPint {
+        /// Creates new instance representing the given native integer.
+        fn new(mut num: u128) -> Self {
+            let mut res_data = vec![0; Self::width_to_bins_count(128 as usize)];
 
-    impl CreateNewFrom<usize> for MPint {
-        /// Creates a new instance with the desired bit-width and initialized to `0`.
-        ///
-        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
-        fn new(width: usize) -> Self {
-            let bin_count = Self::width_to_bins_count(width);
-            let data = vec![0; bin_count];
-            Self::new(data)
+            for i in 0..res_data.len() {
+                res_data[i] = num as DigitT;
+                num >>= DIGIT_BITS;
+            }
+
+            Self::new(res_data)
         }
     }
 
@@ -176,43 +148,24 @@ pub mod mp_int {
     }
 
     impl MPint {
+        /// Creates a new instance with the desired bit-width and initialized to `0`.
+        ///
+        /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
+        pub fn new_with_width(w: usize) -> Self {
+            let bin_count = Self::width_to_bins_count(w);
+            let data = vec![0; bin_count];
+            Self::new(data)
+        }
+
         /// Retrieves this number's current bit-width.
         pub fn width(&self) -> usize {
             self.data.len() * (DIGIT_BITS as usize)
-        }
-
-        /// Tries to in-place extend or truncate `self` to the specified bit-width.
-        /// Useful e.g. to adjust an instance to a multiplication result.
-        ///
-        /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
-        /// `Err(self)` containing the untouched instance is returned, if non-zero
-        /// bins had to be dropped to meet the desired `target_width`.
-        pub fn try_set_width(mut self, target_width: usize) -> Result<Self, Self> {
-            let new_bins_count = Self::width_to_bins_count(target_width);
-            let old_bins_count = self.data.len();
-
-            if new_bins_count == old_bins_count {
-                return Ok(self);
-            } else if new_bins_count > old_bins_count {
-                let mut tail = vec![0; new_bins_count - old_bins_count];
-                self.data.append(&mut tail);
-            } else {
-                // Check whether tail is empty
-                for i in (new_bins_count..old_bins_count).rev() {
-                    if self.data[i] != 0 {
-                        return Err(self);
-                    }
-                }
-                self.data.truncate(new_bins_count);
-            }
-            Ok(self)
         }
 
         pub fn width_to_bins_count(width: usize) -> usize {
             width.div_ceil(DIGIT_BITS as usize)
         }
 
-        /// Calculates quotient and remainder using the given _native_ integer
         /// Calculates quotient and remainder using the given _native_ integer divisor.
         ///
         /// # Footnote
@@ -238,7 +191,7 @@ pub mod mp_int {
         /// - When finished, adjust sign of quotient and remainder
         ///
         pub fn div_with_rem(&self, divisor: DigitT) -> (Self, i128) {
-            let mut quotient = Self::new(self);
+            let mut quotient = MPint::new_with_width(self.width());
 
             let divisor = divisor as DoubleDigitT;
             let mut last_r = 0 as DoubleDigitT;
@@ -266,26 +219,20 @@ pub mod mp_int {
             (quotient, last_r)
         }
 
-        /// Gets max number of digits (in regards to the internal radix).
+        /// Gets number of digits in regards to the internal radix.
+        /// Note that this includes trailing "0".
         pub fn len(&self) -> usize {
             self.data.len()
         }
 
-        pub fn from_digit(digit: DigitT, width: usize) -> Self {
-            let mut num = Self::new(width);
-            num[0] = digit;
-            num
-        }
-
-        /// Creates new number with _at least_ `width` bits using the given
-        /// decimal string `num_str`. First character may be a sign (`+`/`-`).
+        /// Creates new `MPint` from the given decimal string `num_str`.
+        /// Other than the first character, which may be a sign (`+`/`-`), only
+        /// decimal digits are allowed inside `num_str`.
         ///
         /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
-        ///  - `Err(ParseError)` if:
-        ///     - `width` was too short
-        ///     - `num_str` was empty or contained invalid chars
-        pub fn from_dec_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+        ///  - `Err(ParseError)`: if `num_str` was empty or contained invalid chars
+        pub fn from_dec_str(num_str: &str) -> Result<Self, ParseError> {
             if num_str.is_empty() {
                 return Err("`num_str` must be non-empty".into());
             }
@@ -303,29 +250,21 @@ pub mod mp_int {
             // e.g. digits = [1, 2, 3, 4]
             //     →  Calculate: ((((0)*10 + 1)*10+2)*10+3)*10+4
             //                               ↑     ↑     ↑     ↑
-            let mut result = Self::new(width);
+            let mut result = Self::new_with_width(approx_bit_width(decimals.len()));
             for d in decimals {
                 let mut pt_res1 = result.clone();
                 let mut pt_res2 = result.clone();
-                let mut has_overflowed = false;
 
                 // Multiply last result by 10:
                 // (2*2*2*x + 2*x == 10*x)
                 pt_res1 <<= 3;
-                has_overflowed |= pt_res1 < result;
                 pt_res2 <<= 1;
-                has_overflowed |= pt_res2 < result;
 
                 // result = pt_res1 + pt_res2;
-                has_overflowed |= pt_res1.overflowing_add(pt_res2);
+                pt_res1 += pt_res2;
                 result = pt_res1;
 
-                // result += d as DigitT;
-                has_overflowed |= result.overflowing_add(MPint::from_digit(d as DigitT, width));
-
-                if has_overflowed {
-                    return Err("speficfied bit width is too short for the given number".into());
-                }
+                result += d as DigitT
             }
 
             result.sign = sign;
@@ -338,10 +277,8 @@ pub mod mp_int {
         ///
         /// # Returns
         ///  - `Ok(Self)`: new MPint instance representing the number in `num_str`
-        ///  - `Err(ParseError)` if:
-        ///     - `width` was too short
-        ///     - `num_str` was empty or contained invalid chars
-        pub fn from_hex_str(num_str: &str, width: usize) -> Result<Self, ParseError> {
+        ///  - `Err(ParseError)`: if `num_str` was empty or contained invalid chars
+        pub fn from_hex_str(num_str: &str) -> Result<Self, ParseError> {
             const BITS_PER_HEX: usize = 4;
             const HEX_PER_DIGIT_T: usize = DIGIT_BITS as usize / BITS_PER_HEX;
 
@@ -357,15 +294,10 @@ pub mod mp_int {
             let num_str = num_str.trim_start_matches('0');
 
             let req_width = num_str.len() * BITS_PER_HEX as usize;
-            if req_width > width {
-                return Err("speficfied bit width is too short for the given number".into());
-            }
-
-            let mut result = MPint::new(width);
+            let mut result = MPint::new_with_width(req_width);
 
             let num_str_bytes = num_str.as_bytes();
             let step = HEX_PER_DIGIT_T;
-
             let mut end = num_str_bytes.len();
 
             // Parse `num_str` in "16-hex-digit" bites, starting with its LSB
@@ -374,7 +306,6 @@ pub mod mp_int {
                     break;
                 }
                 let start = end.saturating_sub(step);
-
                 let digit_as_hex_str = from_utf8(&num_str_bytes[start..end]).unwrap();
 
                 // Parse hex-slice and write as internal digit
@@ -406,7 +337,8 @@ pub mod mp_int {
             result
         }
 
-        /// Alias for `into_iter()`
+        /// Alias for `into_iter()`. Returns an iterator over the underlying digits
+        /// in _little-endian_ order.
         pub fn iter(&self) -> Iter<DigitT> {
             self.into_iter()
         }
@@ -415,10 +347,7 @@ pub mod mp_int {
             self.sign == Sign::Neg
         }
 
-        fn assert_same_width(&self, rhs: &MPint) {
-            assert_eq!(self.width(), rhs.width(), "operands must have equal widths");
-        }
-
+        /// Returns the hexadecimal representation of this `MPint`.
         pub fn to_hex_string(&self) -> String {
             let mut hex: String = String::new();
             if self.is_negative() {
@@ -432,7 +361,8 @@ pub mod mp_int {
             hex
         }
 
-        /// Derives a decimal string representation of `self`, utilizing *Division-Remainder Method*.
+        /// Derives a decimal string representation of `self`, utilizing the
+        /// _Division-Remainder Method_.
         pub fn to_dec_string(&self) -> String {
             // passing this as param should suffice to enable arbitrary output bases
             const BASE: u8 = 10;
@@ -462,53 +392,75 @@ pub mod mp_int {
         /// Compares the number's __absolute__ values (i.e. ignoring sign).
         /// # Returns
         /// - `Ordering` enum value, representing the relation of `self` to `other`.
-        /// - `None` when operands are incompatible.
-        fn cmp_abs(&self, other: &MPint) -> Option<Ordering> {
-            if self.len() != other.len() {
-                return None;
+        fn cmp_abs(&self, other: &MPint) -> Ordering {
+            // Sort by "width"
+            let (wide, short) =
+                if self.len() >= other.len() { (self, other) } else { (other, self) };
+            let wide_is_self = std::ptr::eq(self, wide);
+
+            // Check extra part in wider num
+            for i in short.len()..wide.len() {
+                if wide[i] != 0 {
+                    // → wide > short
+                    return if wide_is_self { Ordering::Greater } else { Ordering::Less };
+                }
             }
 
-            let mut self_other_cmp = Ordering::Equal;
-            // Compare bins/digits
-            for (self_d, other_d) in self.iter().zip(other).rev() {
-                if self_d == other_d {
-                    continue;
-                } else {
+            // Compare overlapping digits (starting with most significant)
+            let mut self_other_ord = Ordering::Equal;
+
+            for i in (0..short.len()).rev() {
+                let (self_d, other_d) = (self[i], other[i]);
+                if self_d != other_d {
                     // On difference, assign matching relation and exit loop.
                     if self_d > other_d {
-                        self_other_cmp = Ordering::Greater;
+                        self_other_ord = Ordering::Greater;
                     } else {
-                        self_other_cmp = Ordering::Less;
+                        self_other_ord = Ordering::Less;
                     }
                     break;
                 }
             }
-
-            Some(self_other_cmp)
+            self_other_ord
         }
 
         fn is_zero(&self) -> bool {
             self.data.iter().all(|d| *d == 0)
         }
 
-        /// Calculates the two's complement of the given number.
-        /// Note that the result will have an _inverted sign_.
+        /// Calculates the two's complement of the given number. This operation depends
+        /// on the underlying width and, by definition, the result is mathematicaly
+        /// compatible only with `MPint` of __same widths__.
+        ///
+        /// Note that the result will have an __inverted sign__.
         fn twos_complement_inplace(&mut self) {
             _ = self.not();
             let result_sign = !self.sign;
-            // Following necessary b/co of how add works (neg. self would recurse infinitely)
-            self.sign = Sign::Pos;
-            *self += 1 as DigitT;
+
+            // Add `1` avoiding auto-extend: Overflow is intended in certain cases
+            let mut one = Self::new(vec![0; self.data.len()]);
+            one[0] = 1;
+            (*self).carry_ripple_add_bins_inplace(&one);
 
             self.sign = result_sign;
         }
 
         /// Helper function.
         /// Adds two number's bins and returns whether the most significant bin produced a carry.
-        /// Note that **`self` keeps its sign**, regardless of `other`'s sign.
+        /// # Note
+        /// - Both numbers shall have the __same width__.
+        /// - This method effectively adds the __absolute values__, ignoring signs of the operands.
+        /// - `self` __keeps its sign__, regardless of `other`'s sign.
+        ///
+        /// # Returns
+        /// - A `bool` representing the "Carry-Out" of the adder.
+        ///
+        /// # Panics
+        /// - When given numbers have unequal widths.
         fn carry_ripple_add_bins_inplace(&mut self, other: &MPint) -> bool {
-            let mut carry = false;
+            assert_eq!(self.width(), other.width(), "operands must have equal widths");
 
+            let mut carry = false;
             for i in 0..other.len() {
                 let digit: DigitT;
                 (digit, carry) = add_with_carry(self[i], other[i], carry);
@@ -520,7 +472,7 @@ pub mod mp_int {
         /// In place adds `self` to `rhs`.\
         /// Returns a boolean indicating whether an arithmetic overflow occured.
         fn overflowing_add(&mut self, mut rhs: Self) -> bool {
-            self.assert_same_width(&rhs);
+            self.normalize_widths(&mut rhs);
             let rhs = &mut rhs;
 
             let mut carry: bool = false;
@@ -537,7 +489,7 @@ pub mod mp_int {
                     (rhs, self)
                 };
 
-                let pos_lt_neg = pos.cmp_abs(&neg).unwrap() == Ordering::Less;
+                let pos_lt_neg = pos.cmp_abs(&neg) == Ordering::Less;
 
                 neg.twos_complement_inplace();
 
@@ -562,6 +514,70 @@ pub mod mp_int {
             // Overflow can only ever occur, when both signs were equal, since
             // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
             carry
+        }
+
+        /// Normalizes the widths of two numbers, ensuring both have equal widths.
+        /// In order to achieve this, the width of the _shorter_ number is adjusted
+        /// to match the _wider_ number's width.
+        ///
+        /// If the widths are already equal, no changes are made.
+        ///
+        /// # Examples
+        /// ```
+        /// use mpa_lib::mp_int::*;
+        /// let (mut a, mut b) = (mpint![1,2,3,0], mpint![4]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![1,2,3,0], mpint![4,0,0,0]));
+        ///
+        /// let (mut a, mut b) = (mpint![4], mpint![1,2,3,0]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![4,0,0,0], mpint![1,2,3,0]));
+        ///
+        /// let (mut a, mut b) = (mpint![0], mpint![0,0,0]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![0,0,0], mpint![0,0,0]));
+        /// ```
+        pub fn normalize_widths(&mut self, other: &mut Self) {
+            let (self_width, other_width) = (self.width(), other.width());
+
+            match self_width.partial_cmp(&other_width).unwrap() {
+                Ordering::Less => self.try_set_width(other_width).unwrap(),
+                Ordering::Equal => (),
+                Ordering::Greater => other.try_set_width(self_width).unwrap(),
+            };
+        }
+
+        /// Tries to in-place extend or truncate `self` to the specified bit-width.
+        /// Useful e.g. to normalize widths of two instances.
+        ///
+        /// # Returns
+        /// - `Some(())` on success. As usual, the actual new width will be a multiple
+        /// of `DIGITS_WIDTH`.
+        /// - `None`, if non-zero bins would've been dropped to meet the specified
+        /// `target_width`. In this case `self` is not modified.
+        ///
+        pub fn try_set_width(&mut self, target_width: usize) -> Option<()> {
+            let new_bins_count = Self::width_to_bins_count(target_width);
+            let old_bins_count = self.data.len();
+
+            if new_bins_count == old_bins_count {
+                return Some(());
+            } else if new_bins_count > old_bins_count {
+                let mut tail = vec![0; new_bins_count - old_bins_count];
+                self.data.append(&mut tail);
+            } else {
+                // Check whether tail is empty
+                for i in (new_bins_count..old_bins_count).rev() {
+                    if self.data[i] != 0 {
+                        return None;
+                    }
+                }
+                self.data.truncate(new_bins_count);
+            }
+            Some(())
         }
     }
 
@@ -638,16 +654,14 @@ pub mod mp_int {
     impl AddAssign<DigitT> for MPint {
         /// Inplace `+=` operator for `DigitT` right-hand side.
         fn add_assign(&mut self, rhs: DigitT) {
-            *self += Self::from_digit(rhs, self.width());
+            *self += mpint![rhs];
         }
     }
 
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
-            let mut mp_rhs = MPint::new(self.width());
-            mp_rhs[0] = rhs as DigitT;
-            mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
+            let mp_rhs = MPint::new(rhs);
             *self += mp_rhs;
         }
     }
@@ -655,7 +669,10 @@ pub mod mp_int {
     impl AddAssign for MPint {
         /// Performs the += operation. Arithmetic overflows are silently ignored.
         fn add_assign(&mut self, rhs: Self) {
-            self.overflowing_add(rhs);
+            let overflow = self.overflowing_add(rhs);
+            if overflow {
+                self.data.push(1);
+            }
         }
     }
 
@@ -674,27 +691,18 @@ pub mod mp_int {
         /// This uses a "Product-Scanning" approach, which means we directly
         /// calculate each result digit one at a time.
         fn extending_prod_scan_mul(&self, rhs: &Self) -> Self {
-            // ~~~~ Preamble ~~~~
-            self.assert_same_width(rhs);
-
             // Zero short circuit
-            if self.is_zero() {
-                return self.clone();
-            } else if rhs.is_zero() {
-                return rhs.clone();
+            if self.is_zero() || rhs.is_zero() {
+                return mpint![0];
             }
 
-            let result_sign = if self.sign == rhs.sign {
-                Sign::Pos
-            } else {
-                Sign::Neg
-            };
+            let result_sign = if self.sign == rhs.sign { Sign::Pos } else { Sign::Neg };
 
             // ~~~~ Main ~~~~
-            let operand_len = self.len();
-            let max_new_width = self.width() * 2;
+            let operand_len = self.len().max(rhs.len());
+            let max_new_width = self.width() + rhs.width();
 
-            let mut end_product = MPint::new(max_new_width);
+            let mut end_product = MPint::new_with_width(max_new_width);
 
             // Calculate one result digit per iteration
             for i in 0..end_product.len() {
@@ -712,8 +720,10 @@ pub mod mp_int {
                         // i.e. in MSB-half of the end product
                         continue;
                     }
-                    let a_j = self[j] as DoubleDigitT;
-                    let b_k = rhs[k] as DoubleDigitT;
+
+                    // Simulates "0-digit" on different width operands
+                    let a_j = *self.data.get(j).unwrap_or(&0) as DoubleDigitT;
+                    let b_k = *rhs.data.get(k).unwrap_or(&0) as DoubleDigitT;
 
                     let prod_i_jk: DoubleDigitT = a_j * b_k;
 
@@ -727,7 +737,7 @@ pub mod mp_int {
             }
 
             // ~~~~ Epilog ~~~~
-            end_product.trim_empty_end(self.len());
+            end_product.trim_empty_end(1);
             end_product.sign = result_sign;
 
             end_product
@@ -737,6 +747,7 @@ pub mod mp_int {
             self.data.rotate_left(n);
         }
 
+        /// Removes empty (i.e. `0`) bins from the end
         fn trim_empty_end(&mut self, min_len: usize) {
             // Get first non-zero digit index from the end
             let mut first_non_zero = 0;
@@ -770,6 +781,11 @@ pub mod mp_int {
 
     /// inplace `<<=` operator
     impl ShlAssign<u32> for MPint {
+        /// Performs the <<= operation.
+        ///
+        /// # Panics
+        /// Alike native integer implementations, when trying to shift more than
+        /// the current bit-width.
         fn shl_assign(&mut self, mut shift_distance: u32) {
             assert!((shift_distance as usize) < self.width());
             const MAX_STEP: u32 = DIGIT_BITS - 1;
@@ -792,21 +808,31 @@ pub mod mp_int {
 
                 shift_distance -= sh_step;
             }
+        }
+    }
 
-            // // here we could panic! if `overflow != 0`, which would mean that
-            // // the number as a whole overflowed.
-            // // Actually we could do this check in advance by checking where the last `1`
-            // // is in the last bin and compare to `rhs` accordingly.
+    impl PartialEq<DigitT> for MPint {
+        fn eq(&self, digit: &DigitT) -> bool {
+            self.partial_cmp(digit) == Some(Ordering::Equal)
+        }
+    }
+
+    impl PartialEq for MPint {
+        fn eq(&self, other: &Self) -> bool {
+            self.partial_cmp(other) == Some(Ordering::Equal)
+        }
+    }
+
+    impl PartialOrd<DigitT> for MPint {
+        fn partial_cmp(&self, digit: &DigitT) -> Option<Ordering> {
+            self.partial_cmp(&mpint![*digit])
         }
     }
 
     /// Implements comparisson operators `<`, `<=`, `>`, and `>=`.
+    /// `==` is implemented with `PartialEq` trait.
     impl PartialOrd for MPint {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            if self.len() != other.len() {
-                return None;
-            }
-
             // Treat possible +/-0 as equal
             if self.is_zero() && other.is_zero() {
                 return Some(Ordering::Equal);
@@ -820,7 +846,7 @@ pub mod mp_int {
             }
 
             // Compare absolute values
-            let mut self_other_cmp = self.cmp_abs(other)?;
+            let mut self_other_cmp = self.cmp_abs(other);
 
             // Invert relation for negative numbers.
             assert!(self.sign == other.sign, "expected equal signs but were different");
@@ -921,88 +947,103 @@ pub mod mp_int {
             #[test]
             fn no_change() {
                 let num = mpint![1, 2, 3];
-                let expect = Ok(mpint![1, 2, 3]);
+                let expect = (Some(()), num.clone());
 
-                let result = num.clone().try_set_width(192);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(192);
+                assert_eq!((res, test_num), expect.clone());
 
-                let result = num.clone().try_set_width(177);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(177);
+                assert_eq!((res, test_num), expect.clone());
 
-                let result = num.clone().try_set_width(129);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(129);
+                assert_eq!((res, test_num), expect.clone());
             }
 
             #[test]
-            fn trim_err_1() {
+            fn trim_fail_1() {
                 let num = mpint![1, 2, 3];
-                let expect = Err(num.clone());
+                let expect = (None, num.clone());
 
-                let result = num.clone().try_set_width(128);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(128);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(96);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(96);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
-            fn trim_err_2() {
+            fn trim_fail_2() {
                 let num = mpint![1, 2, 3, 0];
-                let expect = Err(num.clone());
+                let expect = (None, num.clone());
 
-                let result = num.clone().try_set_width(128);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(128);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(96);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(96);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn truncate_1() {
                 let num = mpint![1, 2, 3, 0];
-                let expect = Ok(mpint![1, 2, 3]);
+                let expect = (Some(()), mpint![1, 2, 3]);
 
-                let result = num.clone().try_set_width(192);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(192);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(129);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(129);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn truncate_2() {
                 let num = mpint![1, 2, 3, 0, 0, 0];
-                let expect = Ok(mpint![1, 2, 3, 0]);
+                let expect = (Some(()), mpint![1, 2, 3, 0]);
 
-                let result = num.clone().try_set_width(256);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(256);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(222);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(222);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(193);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(193);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn extend_1() {
                 let num = mpint![1, 2];
-                let result = num.try_set_width(129);
-                let expect = Ok(mpint![1, 2, 0]);
-                assert_eq!(result, expect);
+                let expect = (Some(()), mpint![1, 2, 0]);
+
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(129);
+                assert_eq!((res, num_res), expect);
             }
 
             #[test]
             fn extend_2() {
                 let num = mpint![1, 2, 0];
-                let result = num.clone().try_set_width(4096);
+                let mut exp_num = MPint::new(vec![0; 64]);
+                exp_num[0] = num[0];
+                exp_num[1] = num[1];
+                exp_num[2] = num[2];
+                let expect = (Some(()), exp_num);
 
-                let mut expect = MPint::new(vec![0; 64]);
-                expect[0] = num[0];
-                expect[1] = num[1];
-                expect[2] = num[2];
-
-                assert_eq!(result, Ok(expect));
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(4096);
+                assert_eq!((res, num_res), expect);
             }
         }
 
@@ -1062,6 +1103,9 @@ pub mod mp_int {
             }
         }
 
+        /// Tests the different comparisson operators of `MPint`.
+        /// `PartialEq` ("==") is tested implicitly tested here, since its impl
+        /// simply passes calls to `partial_cmp`.
         mod test_partial_cmp {
             use super::*;
             use Ordering::{Equal, Greater, Less};
@@ -1176,6 +1220,81 @@ pub mod mp_int {
                 assert_eq!(z_neg1.partial_cmp(&z_neg2), Some(Equal));
                 assert_eq!(z_neg1.partial_cmp(&z_pos2), Some(Equal));
             }
+
+            #[test]
+            fn diff_widths_equality() {
+                {
+                    // explicitly tests "PartialEq"
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 0, 0, 0]);
+                    assert!(a == b);
+                    assert!(b == a);
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3], mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3, 0], mpint![1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3, 0], mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+                {
+                    let (a, b) = (-mpint![0, 1, 2, 3, 0], -mpint![0, 1, 2, 3, 0, 0, 0]);
+                    assert_eq!(a.partial_cmp(&b), Some(Equal));
+                    assert_eq!(b.partial_cmp(&a), Some(Equal));
+                }
+            }
+
+            #[test]
+            fn diff_widths_lt_gt() {
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 4]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3, 0], mpint![0, 1, 2, 3, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 0, 0, 3, 2, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![1, 2, 3], mpint![0, 1, 2, 3]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+            }
+
+            #[test]
+            fn cmp_single_digit() {
+                let a = mpint![123, 0];
+                let b = mpint![12, 0];
+                let c = mpint![42, 0];
+                let d = mpint![0, 42];
+                let digit: DigitT = 42;
+
+                assert_eq!(a.partial_cmp(&digit), Some(Greater));
+                assert_eq!((-a).partial_cmp(&digit), Some(Less));
+                assert_eq!(b.partial_cmp(&digit), Some(Less));
+                assert_eq!((-b).partial_cmp(&digit), Some(Less));
+                assert_eq!(c.partial_cmp(&digit), Some(Equal));
+                assert_eq!(d.partial_cmp(&digit), Some(Greater));
+            }
         }
 
         mod test_mul {
@@ -1233,17 +1352,19 @@ pub mod mp_int {
             #[test]
             fn zero_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(0, b.width());
-                test_mul_correctness(a, b);
+                let a = mpint![0, 0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b, a);
                 let a = mpint![0, 9, 8, 7, 6, 0];
-                let b = MPint::from_digit(0, a.width());
-                test_mul_correctness(a, b);
+                let b = -mpint![0, 0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b, a);
             }
 
             #[test]
             fn one_factor() {
                 let b = mpint![100, 10, 1, 0, 0, 0];
-                let a = MPint::from_digit(1, b.width());
+                let a = mpint![1, 0, 0, 0, 0, 0];
                 test_mul_correctness(a.clone(), b.clone());
 
                 assert_eq!(
@@ -1258,7 +1379,7 @@ pub mod mp_int {
                 );
 
                 let c = mpint![0, 9, 8, 7, 6, 0];
-                let d = MPint::from_digit(1, c.width());
+                let d = mpint![1, 0, 0, 0, 0, 0];
                 test_mul_correctness(c.clone(), d.clone());
                 test_mul_correctness(-a, b);
                 test_mul_correctness(c, -d);
@@ -1276,6 +1397,42 @@ pub mod mp_int {
                 let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
                 let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
                 test_mul_correctness(a.clone(), b.clone());
+            }
+
+            #[test]
+            fn diff_widths_1() {
+                let a = mpint![0, 9, 8, 7];
+                let b = mpint![100, 10, 1, 0, 0, 0];
+                test_mul_correctness(a, b);
+                let a = mpint![0, 9, 0, 8, 7, 6];
+                let b = mpint![100, 10, 1];
+                test_mul_correctness(a, b);
+                let a = mpint![0, 9, 8, 7, 6, 0];
+                let b = mpint![100];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b.clone(), a.clone());
+                let a = -mpint![0];
+                let b = mpint![1, 2, 3];
+                test_mul_correctness(a.clone(), b.clone());
+                test_mul_correctness(b.clone(), a.clone());
+            }
+
+            #[test]
+            fn test_outcome_width() {
+                let a = mpint![1, 2, 3, 0];
+                let b = mpint![10, 0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 3);
+                assert_eq!((&b * &a).len(), 3);
+                let a = mpint![D_MAX];
+                let b = a.clone();
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 2);
+                let a = mpint![1, 2, 3];
+                let b = mpint![0, 0, 0, 0, 0];
+                test_mul_correctness(a.clone(), b.clone());
+                assert_eq!((&a * &b).len(), 1);
+                assert_eq!((&b * &a).len(), 1);
             }
         }
 
@@ -1385,7 +1542,7 @@ pub mod mp_int {
                 fn plus_minus_max() {
                     let a = mpint![D_MAX, D_MAX, D_MAX];
                     let b = -a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&b + &a, zero);
                 }
@@ -1393,7 +1550,7 @@ pub mod mp_int {
                 fn normal_values() {
                     let a = mpint![630, 801, 366, 345, 372];
                     let b = -a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&b + &a, zero);
                 }
@@ -1401,7 +1558,7 @@ pub mod mp_int {
                 fn both_zero() {
                     let a = mpint![0, 0, 0];
                     let b = a.clone();
-                    let zero = MPint::new(&a);
+                    let zero = MPint::new_with_width(a.width());
                     assert_eq!(&a + &b, zero);
                     assert_eq!(&-&a + &-&b, zero);
                     assert_eq!(&a + &-&b, zero);
@@ -1437,100 +1594,94 @@ pub mod mp_int {
             #[test]
             fn low_digit_max_1() {
                 let hex_str = "FFFFFFFFFFFFFFFF";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX]));
             }
 
             #[test]
             fn low_digit_max_2() {
                 let hex_str = concat!("F", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0xF]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX, 0xF]));
             }
 
             #[test]
             fn high_digit_non_zero() {
                 let hex_str = concat!("ABCdEf0123456789", "0000000000000000");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0, 0xABCDEF0123456789]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0, 0xABCDEF0123456789]));
             }
 
             #[test]
             fn normal_value_1() {
                 let hex_str = concat!("01", "0000000000000A00");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0xA00, 0x1]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0xA00, 0x1]));
             }
 
             #[test]
             fn with_sign_1() {
                 let hex_str = concat!("+", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![DigitT::MAX]));
                 let hex_str = concat!("-", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(-mpint![DigitT::MAX]));
             }
 
             #[test]
             fn with_sign_2() {
                 let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(-mpint![DigitT::MAX, 0xA]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(-mpint![DigitT::MAX, 0xA]));
             }
 
             #[test]
             fn small_value() {
                 let hex_str = "123";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), Ok(mpint![0x123, 0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0x123]));
             }
 
             #[test]
             fn zero_1() {
-                let zero = Ok(mpint![0, 0]);
+                let zero = Ok(mpint![0]);
                 let hex_str = "-0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
                 let hex_str = "+0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
                 let hex_str = "0";
-                assert_eq!(MPint::from_hex_str(hex_str, 128), zero);
+                assert_eq!(MPint::from_hex_str(hex_str), zero);
             }
 
             #[test]
             fn zero_2_long() {
                 let hex_str = "0000000000000000000000000000000000";
-                assert_eq!(MPint::from_hex_str(hex_str, 64), Ok(mpint![0]));
+                assert_eq!(MPint::from_hex_str(hex_str), Ok(mpint![0]));
             }
 
             #[test]
-            fn failing_1() {
-                let hex_str = concat!("-A", "FFFFFFFFFFFFFFFF");
-                assert!(MPint::from_hex_str(hex_str, 64).is_err());
-            }
-
-            #[test]
-            fn failing_2() {
+            fn fail_2_empty_after_sign() {
                 let hex_str = "-";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_3_empty() {
+            fn fail_3_empty() {
                 let hex_str = "";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_4_whsp() {
+            fn fail_4_whsp() {
                 let hex_str = "1230 ";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = " 1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "1 230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
 
             #[test]
-            fn failing_5_inv_chars() {
+            fn fail_5_inv_chars() {
                 let hex_str = "1230-";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "-x1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
                 let hex_str = "0x1230";
-                assert!(MPint::from_hex_str(hex_str, 128).is_err());
+                assert!(MPint::from_hex_str(hex_str).is_err());
             }
         }
 
