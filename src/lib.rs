@@ -477,7 +477,7 @@ pub mod mp_int {
         /// In place adds `self` to `rhs`.\
         /// Returns a boolean indicating whether an arithmetic overflow occured.
         fn overflowing_add(&mut self, mut rhs: Self) -> bool {
-            self.assert_same_width(&rhs);
+            self.normalize_widths(&mut rhs);
             let rhs = &mut rhs;
 
             let mut carry: bool = false;
@@ -669,7 +669,10 @@ pub mod mp_int {
     impl AddAssign for MPint {
         /// Performs the += operation. Arithmetic overflows are silently ignored.
         fn add_assign(&mut self, rhs: Self) {
-            self.overflowing_add(rhs);
+            let overflow = self.overflowing_add(rhs);
+            if overflow {
+                self.data.push(1);
+            }
         }
     }
 
