@@ -162,33 +162,6 @@ pub mod mp_int {
             self.data.len() * (DIGIT_BITS as usize)
         }
 
-        /// Tries to in-place extend or truncate `self` to the specified bit-width.
-        /// Useful e.g. to adjust another instance to a multiplication result.
-        ///
-        /// On success, the actual new width will be a multiple of `DIGITS_WIDTH`.
-        /// `Err(self)` containing the untouched instance is returned, if non-zero
-        /// bins would have to be dropped to meet the desired `target_width`.
-        pub fn try_set_width(mut self, target_width: usize) -> Result<Self, Self> {
-            let new_bins_count = Self::width_to_bins_count(target_width);
-            let old_bins_count = self.data.len();
-
-            if new_bins_count == old_bins_count {
-                return Ok(self);
-            } else if new_bins_count > old_bins_count {
-                let mut tail = vec![0; new_bins_count - old_bins_count];
-                self.data.append(&mut tail);
-            } else {
-                // Check whether tail is empty
-                for i in (new_bins_count..old_bins_count).rev() {
-                    if self.data[i] != 0 {
-                        return Err(self);
-                    }
-                }
-                self.data.truncate(new_bins_count);
-            }
-            Ok(self)
-        }
-
         pub fn width_to_bins_count(width: usize) -> usize {
             width.div_ceil(DIGIT_BITS as usize)
         }
@@ -546,6 +519,65 @@ pub mod mp_int {
             // Overflow can only ever occur, when both signs were equal, since
             // on unequal signs the worst-case is: `0 - MPint::max()` <=> `-MPint::max()`
             carry
+        }
+
+        /// Normalizes the widths of two numbers, ensuring both have equal widths.
+        /// In order to achieve this, the width of the _shorter_ number is adjusted
+        /// to match the _wider_ number's width.
+        ///
+        /// If the widths are already equal, no changes are made.
+        ///
+        /// # Examples
+        /// ```
+        /// use mpa_lib::mp_int::*;
+        /// let (mut a, mut b) = (mpint![1,2,3,0], mpint![4]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![1,2,3,0], mpint![4,0,0,0]));
+        ///
+        /// let (mut a, mut b) = (mpint![4], mpint![1,2,3,0]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![4,0,0,0], mpint![1,2,3,0]));
+        /// ```
+        pub fn normalize_widths(&mut self, other: &mut Self) {
+            let (self_width, other_width) = (self.width(), other.width());
+
+            match self_width.partial_cmp(&other_width).unwrap() {
+                Ordering::Less => self.try_set_width(other_width).unwrap(),
+                Ordering::Equal => (),
+                Ordering::Greater => other.try_set_width(self_width).unwrap(),
+            };
+        }
+
+        /// Tries to in-place extend or truncate `self` to the specified bit-width.
+        /// Useful e.g. to normalize widths of two instances.
+        ///
+        /// # Returns
+        /// - `Some(())` on success. As usual, the actual new width will be a multiple
+        /// of `DIGITS_WIDTH`.
+        /// - `None`, if non-zero bins would've been dropped to meet the specified
+        /// `target_width`. In this case `self` is not modified.
+        ///
+        pub fn try_set_width(&mut self, target_width: usize) -> Option<()> {
+            let new_bins_count = Self::width_to_bins_count(target_width);
+            let old_bins_count = self.data.len();
+
+            if new_bins_count == old_bins_count {
+                return Some(());
+            } else if new_bins_count > old_bins_count {
+                let mut tail = vec![0; new_bins_count - old_bins_count];
+                self.data.append(&mut tail);
+            } else {
+                // Check whether tail is empty
+                for i in (new_bins_count..old_bins_count).rev() {
+                    if self.data[i] != 0 {
+                        return None;
+                    }
+                }
+                self.data.truncate(new_bins_count);
+            }
+            Some(())
         }
     }
 
@@ -919,88 +951,103 @@ pub mod mp_int {
             #[test]
             fn no_change() {
                 let num = mpint![1, 2, 3];
-                let expect = Ok(mpint![1, 2, 3]);
+                let expect = (Some(()), num.clone());
 
-                let result = num.clone().try_set_width(192);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(192);
+                assert_eq!((res, test_num), expect.clone());
 
-                let result = num.clone().try_set_width(177);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(177);
+                assert_eq!((res, test_num), expect.clone());
 
-                let result = num.clone().try_set_width(129);
-                assert_eq!(result, expect.clone());
+                let mut test_num = num.clone();
+                let res = test_num.try_set_width(129);
+                assert_eq!((res, test_num), expect.clone());
             }
 
             #[test]
-            fn trim_err_1() {
+            fn trim_fail_1() {
                 let num = mpint![1, 2, 3];
-                let expect = Err(num.clone());
+                let expect = (None, num.clone());
 
-                let result = num.clone().try_set_width(128);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(128);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(96);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(96);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
-            fn trim_err_2() {
+            fn trim_fail_2() {
                 let num = mpint![1, 2, 3, 0];
-                let expect = Err(num.clone());
+                let expect = (None, num.clone());
 
-                let result = num.clone().try_set_width(128);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(128);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(96);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(96);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn truncate_1() {
                 let num = mpint![1, 2, 3, 0];
-                let expect = Ok(mpint![1, 2, 3]);
+                let expect = (Some(()), mpint![1, 2, 3]);
 
-                let result = num.clone().try_set_width(192);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(192);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(129);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(129);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn truncate_2() {
                 let num = mpint![1, 2, 3, 0, 0, 0];
-                let expect = Ok(mpint![1, 2, 3, 0]);
+                let expect = (Some(()), mpint![1, 2, 3, 0]);
 
-                let result = num.clone().try_set_width(256);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(256);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(222);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(222);
+                assert_eq!((res, num_res), expect.clone());
 
-                let result = num.clone().try_set_width(193);
-                assert_eq!(result, expect.clone());
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(193);
+                assert_eq!((res, num_res), expect.clone());
             }
 
             #[test]
             fn extend_1() {
                 let num = mpint![1, 2];
-                let result = num.try_set_width(129);
-                let expect = Ok(mpint![1, 2, 0]);
-                assert_eq!(result, expect);
+                let expect = (Some(()), mpint![1, 2, 0]);
+
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(129);
+                assert_eq!((res, num_res), expect);
             }
 
             #[test]
             fn extend_2() {
                 let num = mpint![1, 2, 0];
-                let result = num.clone().try_set_width(4096);
+                let mut exp_num = MPint::new(vec![0; 64]);
+                exp_num[0] = num[0];
+                exp_num[1] = num[1];
+                exp_num[2] = num[2];
+                let expect = (Some(()), exp_num);
 
-                let mut expect = MPint::new(vec![0; 64]);
-                expect[0] = num[0];
-                expect[1] = num[1];
-                expect[2] = num[2];
-
-                assert_eq!(result, Ok(expect));
+                let mut num_res = num.clone();
+                let res = num_res.try_set_width(4096);
+                assert_eq!((res, num_res), expect);
             }
         }
 
