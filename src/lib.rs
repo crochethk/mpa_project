@@ -447,9 +447,11 @@ pub mod mp_int {
         fn twos_complement_inplace(&mut self) {
             _ = self.not();
             let result_sign = !self.sign;
-            // Following necessary b/co of how add works (neg. self would recurse infinitely)
-            self.sign = Sign::Pos;
-            *self += 1 as DigitT;
+
+            // Add `1` avoiding auto-extend: Overflow is intended in certain cases
+            let mut one = Self::new(vec![0; self.data.len()]);
+            one[0] = 1;
+            (*self).carry_ripple_add_bins_inplace(&one);
 
             self.sign = result_sign;
         }
@@ -458,10 +460,14 @@ pub mod mp_int {
         /// Adds two number's bins and returns whether the most significant bin produced a carry.
         /// # Note
         /// - Both numbers shall have the __same width__.
+        /// - This method effectively adds the __absolute values__, ignoring signs of the operands.
         /// - `self` __keeps its sign__, regardless of `other`'s sign.
         ///
         /// # Returns
         /// - A `bool` representing the "Carry-Out" of the adder.
+        ///
+        /// # Panics
+        /// - When given numbers have unequal widths.
         fn carry_ripple_add_bins_inplace(&mut self, other: &MPint) -> bool {
             self.assert_same_width(other);
 
@@ -539,6 +545,11 @@ pub mod mp_int {
         /// assert_ne!(a.width(), b.width());
         /// a.normalize_widths(&mut b);
         /// assert_eq!((a, b), (mpint![4,0,0,0], mpint![1,2,3,0]));
+        ///
+        /// let (mut a, mut b) = (mpint![0], mpint![0,0,0]);
+        /// assert_ne!(a.width(), b.width());
+        /// a.normalize_widths(&mut b);
+        /// assert_eq!((a, b), (mpint![0,0,0], mpint![0,0,0]));
         /// ```
         pub fn normalize_widths(&mut self, other: &mut Self) {
             let (self_width, other_width) = (self.width(), other.width());
