@@ -1257,7 +1257,7 @@ pub mod mp_int {
             }
 
             #[test]
-            fn diff_widths_lt_gt() {
+            fn diff_widths_lt_gt_1() {
                 {
                     let (a, b) = (mpint![1, 2, 3], mpint![1, 2, 3, 4]);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
@@ -1277,6 +1277,25 @@ pub mod mp_int {
                     let (a, b) = (mpint![1, 2, 3], mpint![0, 1, 2, 3]);
                     assert_eq!(a.partial_cmp(&b), Some(Less));
                     assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+            }
+
+            #[test]
+            fn diff_widths_lt_gt_2_signed() {
+                {
+                    let (a, b) = (-mpint![0, 1, 2, 3], mpint![0, 1, 2, 3, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Less));
+                    assert_eq!(b.partial_cmp(&a), Some(Greater));
+                }
+                {
+                    let (a, b) = (mpint![0, 1, 2, 3], -mpint![0, 1, 2, 3, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                    assert_eq!(b.partial_cmp(&a), Some(Less));
+                }
+                {
+                    let (a, b) = (-mpint![0, 1, 2, 3], -mpint![0, 1, 2, 3, 0, 0, 1]);
+                    assert_eq!(a.partial_cmp(&b), Some(Greater));
+                    assert_eq!(b.partial_cmp(&a), Some(Less));
                 }
             }
 
