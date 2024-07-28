@@ -17,15 +17,31 @@
 //! - the operands' `width`s
 //! - the operand value within that random width.
 //!
-//! The width range can be adjusted by specifying the lower and upper boundaries,
-//! so that then `[min_width ≤ width ≤ max_width]`. You can also set a particular
-//! width by specify `min_width == max_width`.
+//! The __width range__ can be adjusted by specifying the lower and upper
+//! boundaries, so that then `min_width ≤ width ≤ max_width`. You can also set a
+//! particular width by specify `min_width == max_width`.
+//! *Note that this doesn't directly influence the mimimum values of the operands,
+//! which might still fit inside a bit-width, shorter than the specified.*
 //!
-//! #### Example
+//! By default, all results are printed to `stdout`. For brevity's sake, this is
+//! done in base-16.
 //!
-//! - Run 2 random `add` operations _(using `cargo`)_:
+//! Optionally you can __export__ the generated operations and their calculated
+//! results into a text file. Each line in this file will have the format
+//! `<lhs> <operator> <rhs> == <result>` (e.g. "12+3==15"), where all values are
+//! represented in decimals. This way you can easily copy 'n paste one or
+//! multiple lines into a Python REPL to verify the respective results.
+//!
+//! #### Examples
+//!
+//! - Run 2 random addition operations:
 //!     ```shell
-//!     cargo run --bin cli -- add -b 10 -n 2
+//!     cargo run --bin cli -- add -n 2
+//!     ```
+//!
+//! - Export results of 3 random multiply operations to `./out.txt`:
+//!     ```shell
+//!     cargo run --bin cli -- mul -n 3 --export "./out.txt"
 //!     ```
 //!
 //! ### Interactive mode
@@ -37,13 +53,13 @@
 //!
 //! #### Example
 //!
-//! - Multiply in interactive mode with hexadecimal base _(using `cargo`)_:
+//! - Interactive multiplication mode and use hexadecimals:
 //!     ```shell
-//!     cargo run --bin cli -- mul -i --base 16
+//!     cargo run --bin cli -- mul -i -b 16
 //!     ```
 //!
 //!
-//! Please refer to `cli --help` for further usage info.
+//! Please refer to `cli --help` for all available options and further usage info.
 
 use clap::{Parser, ValueEnum};
 use mpa_lib::mp_int::*;
@@ -51,6 +67,7 @@ use rand::{Rng, RngCore};
 use rand_pcg::Pcg64Mcg;
 use std::{
     fmt::{Display, Write as _},
+    fs::File,
     io::{self, stdin, Write as _},
     ops::RangeInclusive,
     str::FromStr,
@@ -58,7 +75,7 @@ use std::{
 
 /// Options exlusive to the random test mode
 const RAND_TEST_MODE_OPTS: [&'static str; 5] =
-    ["min_width", "max_width", "test_count", "seed", "out"];
+    ["min_width", "max_width", "test_count", "seed", "export"];
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -84,7 +101,7 @@ pub struct Cli {
 
     /// Export the random operations along with the results into the specified file.
     #[arg(long)]
-    out: Option<String>,
+    export: Option<String>,
 
     /// Interactive mode. Allows manually specify operands in a loop.
     /// Enter `q` to quit.
@@ -214,42 +231,61 @@ fn prompt_user_input(msg: &str) -> String {
 /// Runs randomized tests based on provided args
 fn run_randomized_mode(args: &Cli) {
     //
-    // Run radnomized test operations
+    // Run randomized test operations
     //
 
     let mut header = String::new();
     _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
-    _ = writeln!(header, "| - Mode: Random operands");
-    _ = writeln!(header, "| - min_width: {} bits", MPint::new_with_width(args.min_width).width());
-    _ = writeln!(header, "| - max_width: {} bits", MPint::new_with_width(args.max_width).width());
-    _ = writeln!(header, "| - Test count: {}", args.test_count);
+    _ = writeln!(header, " - Mode: Random operands");
+    _ = writeln!(header, " - min_width: {} bits", MPint::new_with_width(args.min_width).width());
+    _ = writeln!(header, " - max_width: {} bits", MPint::new_with_width(args.max_width).width());
+    _ = writeln!(header, " - Test count: {}", args.test_count);
     _ = writeln!(header, "+---------------------------------------+");
     print!("{}", header);
 
-    let seed: u128 = args.seed.unwrap_or_else(|| rand::random());
-
     // Get a RNG
-    // let mut rng = rand::thread_rng();
+    let seed: u128 = args.seed.unwrap_or_else(|| rand::random());
     let mut rng = Pcg64Mcg::new(seed);
 
+    // Perform operations
+    let mut out_buff = String::new();
     let mut test_cnt = args.test_count;
+    let export_enabled = args.export.is_some();
     while test_cnt > 0 {
         // Get random operands
         let width_range = args.min_width..=args.max_width;
         let lhs = random_mpint(&mut rng, width_range.clone());
         let rhs = random_mpint(&mut rng, width_range);
 
-        let mut str_buff = String::new();
-        _ = writeln!(str_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
-        _ = writeln!(str_buff, "lhs = {lhs}");
-        _ = writeln!(str_buff, "rhs = {rhs}");
-        let result = args.operation.apply(lhs, rhs);
-
-        _ = writeln!(str_buff, "result = {result}");
-
-        print!("{}", str_buff);
+        if export_enabled {
+            _ = write!(
+                out_buff,
+                "{}{}{}==",
+                lhs.to_dec_string(),
+                args.operation,
+                rhs.to_dec_string()
+            );
+            let result = args.operation.apply(lhs, rhs);
+            _ = write!(out_buff, "{}\n", result.to_dec_string());
+        } else {
+            _ = writeln!(out_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
+            _ = writeln!(out_buff, "lhs = {lhs}");
+            _ = writeln!(out_buff, "rhs = {rhs}");
+            let result = args.operation.apply(lhs, rhs);
+            _ = writeln!(out_buff, "result = {result}");
+        }
 
         test_cnt -= 1;
+    }
+
+    if export_enabled {
+        let filepath = args.export.as_ref().unwrap();
+        match write_to_file(filepath, &out_buff) {
+            Ok(()) => println!("Results exported to '{}'", filepath),
+            Err(e) => eprintln!("Export failed: {}", e),
+        }
+    } else {
+        print!("{}", out_buff);
     }
 }
 
@@ -264,4 +300,9 @@ fn random_mpint<R: RngCore>(rng: &mut R, width_range: RangeInclusive<usize>) -> 
     } else {
         num
     }
+}
+
+fn write_to_file(path: &str, data: &str) -> io::Result<()> {
+    let mut file = File::create(path)?;
+    write!(file, "{}", data)
 }
