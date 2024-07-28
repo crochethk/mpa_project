@@ -56,6 +56,10 @@ use std::{
     str::FromStr,
 };
 
+/// Options exlusive to the random test mode
+const RAND_TEST_MODE_OPTS: [&'static str; 5] =
+    ["min_width", "max_width", "test_count", "seed", "out"];
+
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
 pub struct Cli {
@@ -78,13 +82,17 @@ pub struct Cli {
     #[arg(long, short)]
     seed: Option<u128>,
 
+    /// Export the random operations along with the results into the specified file.
+    #[arg(long)]
+    out: Option<String>,
+
     /// Interactive mode. Allows manually specify operands in a loop.
     /// Enter `q` to quit.
-    #[arg(long, short, conflicts_with_all([ "min_width", "max_width", "test_count", "seed"]))]
+    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS))]
     interactive: bool,
 
     /// Base of the input and output in interactive mode.
-    #[arg(long, short, conflicts_with_all([ "min_width", "max_width", "test_count", "seed"]), default_value="10",
+    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS), default_value="10",
         value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
     base: String,
 }
