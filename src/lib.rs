@@ -890,10 +890,9 @@ pub mod mp_int {
         }
     }
 
-    // TODO change this to an actual decimal string
     impl Display for MPint {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.to_hex_string())
+            write!(f, "{}", self.to_dec_string())
         }
     }
 
