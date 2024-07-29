@@ -23,14 +23,11 @@
 //! *Note that this doesn't directly influence the mimimum values of the operands,
 //! which might still fit inside a bit-width, shorter than the specified.*
 //!
-//! By default, all results are printed to `stdout`. For brevity's sake, this is
-//! done in base-16.
-//!
 //! Optionally you can __export__ the generated operations and their calculated
 //! results into a text file. Each line in this file will have the format
 //! `<lhs> <operator> <rhs> == <result>` (e.g. "12+3==15"), where all values are
-//! represented in decimals. This way you can easily copy 'n paste one or
-//! multiple lines into a Python REPL to verify the respective results.
+//! represented in decimals by default. This way you can easily copy 'n paste one
+//! or multiple lines into a Python REPL to verify the respective results.
 //!
 //! #### Examples
 //!
@@ -39,9 +36,9 @@
 //!     cargo run --bin cli -- add -n 2
 //!     ```
 //!
-//! - Export results of 3 random multiply operations to `./out.txt`:
+//! - Export results of 15 random multiply operations to `./out.txt`:
 //!     ```shell
-//!     cargo run --bin cli -- mul -n 3 --export "./out.txt"
+//!     cargo run --bin cli -- mul -n 15 --export "./out.txt"
 //!     ```
 //!
 //! ### Interactive mode
@@ -83,8 +80,8 @@ pub struct Cli {
     #[arg(value_enum)]
     operation: Operation,
 
-    /// Base of the input and output in interactive mode.
-    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS), default_value="10",
+    /// Base for number outputs and where applicable inputs.
+    #[arg(long, short, default_value="10",
         value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
     base: String,
 
@@ -236,9 +233,13 @@ fn run_randomized_mode(args: &Cli) {
     // Run randomized test operations
     //
 
+    let base = u32::from_str(args.base.as_str()).unwrap();
+    let (to_base_string, _) = base_converters(base);
+
     let mut header = String::new();
     _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
     _ = writeln!(header, " - Mode: Random operands");
+    _ = writeln!(header, " - output base: {}", base);
     _ = writeln!(header, " - min_width: {} bits", MPint::new_with_width(args.min_width).width());
     _ = writeln!(header, " - max_width: {} bits", MPint::new_with_width(args.max_width).width());
     _ = writeln!(header, " - Test count: {}", args.test_count);
@@ -263,18 +264,18 @@ fn run_randomized_mode(args: &Cli) {
             _ = write!(
                 out_buff,
                 "{}{}{}==",
-                lhs.to_dec_string(),
+                to_base_string(&lhs),
                 args.operation,
-                rhs.to_dec_string()
+                to_base_string(&rhs)
             );
             let result = args.operation.apply(lhs, rhs);
-            _ = write!(out_buff, "{}\n", result.to_dec_string());
+            _ = write!(out_buff, "{}\n", to_base_string(&result));
         } else {
             _ = writeln!(out_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
-            _ = writeln!(out_buff, "lhs = {lhs}");
-            _ = writeln!(out_buff, "rhs = {rhs}");
+            _ = writeln!(out_buff, "lhs = {}", to_base_string(&lhs));
+            _ = writeln!(out_buff, "rhs = {}", to_base_string(&rhs));
             let result = args.operation.apply(lhs, rhs);
-            _ = writeln!(out_buff, "result = {result}");
+            _ = writeln!(out_buff, "result = {}", to_base_string(&result));
         }
 
         test_cnt -= 1;
