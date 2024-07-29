@@ -62,7 +62,7 @@
 //! Please refer to `cli --help` for all available options and further usage info.
 
 use clap::{Parser, ValueEnum};
-use mpa_lib::mp_int::*;
+use mpa_lib::{mp_int::*, utils::ParseError};
 use rand::{Rng, RngCore};
 use rand_pcg::Pcg64Mcg;
 use std::{
@@ -156,20 +156,16 @@ fn run_interactive_mode(args: &Cli) {
     println!("Enter decimal operand, then hit RETURN");
 
     let base = u32::from_str(args.base.as_str()).unwrap();
-    let to_base_string: fn(&MPint) -> String = match base {
-        16 => MPint::to_hex_string,
-        10 => MPint::to_dec_string,
-        _ => panic!("illegal base"),
-    };
+    let (to_base_string, from_base_str) = base_converters(base);
 
     loop {
-        let lhs = match get_operand_from_user(args, "lhs: ") {
+        let lhs = match get_operand_from_user(from_base_str, "lhs: ") {
             UserInputResult::Operand(x) => x,
             UserInputResult::Error => continue,
             UserInputResult::ExitCmd => break,
         };
 
-        let rhs = match get_operand_from_user(args, "rhs: ") {
+        let rhs = match get_operand_from_user(from_base_str, "rhs: ") {
             UserInputResult::Operand(x) => x,
             UserInputResult::Error => continue,
             UserInputResult::ExitCmd => break,
@@ -187,6 +183,19 @@ fn run_interactive_mode(args: &Cli) {
     println!("Good bye!");
 }
 
+type FromBaseResult = Result<MPint, ParseError>;
+
+/// Returns function pointers for the conversions `to` and `from` the given `base`
+/// string representation.
+fn base_converters(base: u32) -> (fn(&MPint) -> String, fn(&str) -> FromBaseResult) {
+    let result: (fn(&MPint) -> String, fn(&str) -> FromBaseResult) = match base {
+        16 => (MPint::to_hex_string, MPint::from_hex_str),
+        10 => (MPint::to_dec_string, MPint::from_dec_str),
+        _ => panic!("illegal base"),
+    };
+    result
+}
+
 enum UserInputResult {
     Operand(MPint),
     Error,
@@ -195,24 +204,17 @@ enum UserInputResult {
 
 /// Tries to get an operand from user. The result is wrapped in `UserInputResult`,
 /// which can contain the actual operand, an error indicator or the exit command.
-fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
+fn get_operand_from_user(from_base_fn: fn(&str) -> FromBaseResult, msg: &str) -> UserInputResult {
     let input = prompt_user_input(msg);
     let input = input.trim();
     if input == EXIT_CMD {
         return UserInputResult::ExitCmd;
     }
-    let in_base = u32::from_str(args.base.as_str()).unwrap();
 
-    match {
-        match in_base {
-            16 => MPint::from_hex_str(&input),
-            10 => MPint::from_dec_str(&input),
-            _ => panic!("illegal base"),
-        }
-    } {
+    match from_base_fn(&input) {
         Ok(x) => UserInputResult::Operand(x),
         Err(e) => {
-            println!("{e}");
+            eprintln!("{e}");
             UserInputResult::Error
         }
     }
