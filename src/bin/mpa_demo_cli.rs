@@ -83,13 +83,10 @@ pub struct Cli {
     #[arg(value_enum)]
     operation: Operation,
 
-    /// Lower bit-width boundary for randomly chosen operands (≥64).
-    #[arg(long, default_value_t = 64)]
-    min_width: usize,
-
-    /// Upper bit-width boundary for randomly chosen operands (≥64).
-    #[arg(long, default_value_t = 512)]
-    max_width: usize,
+    /// Base of the input and output in interactive mode.
+    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS), default_value="10",
+        value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
+    base: String,
 
     /// Number of test operations to perform
     #[arg(long, short('n'), default_value_t = 5)]
@@ -103,15 +100,18 @@ pub struct Cli {
     #[arg(long)]
     export: Option<String>,
 
+    /// Lower bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 64)]
+    min_width: usize,
+
+    /// Upper bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 512)]
+    max_width: usize,
+
     /// Interactive mode. Allows manually specify operands in a loop.
     /// Enter `q` to quit.
     #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS))]
     interactive: bool,
-
-    /// Base of the input and output in interactive mode.
-    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS), default_value="10",
-        value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
-    base: String,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
