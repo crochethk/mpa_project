@@ -5,8 +5,10 @@
 //!
 //! ## Usage
 //!
-//! There are two modes. Both have in common, that the user must specify the
-//! operation (e.g. "add").
+//! There are two modes, each of which is introduced below.
+//! Both require the user to specify an operation (e.g., "add").
+//! *For a comprehensive list of all available options and further usage
+//! information, please refer to `cli --help`.*
 //!
 //! ### Random test operations mode
 //!
@@ -23,14 +25,11 @@
 //! *Note that this doesn't directly influence the mimimum values of the operands,
 //! which might still fit inside a bit-width, shorter than the specified.*
 //!
-//! By default, all results are printed to `stdout`. For brevity's sake, this is
-//! done in base-16.
-//!
 //! Optionally you can __export__ the generated operations and their calculated
 //! results into a text file. Each line in this file will have the format
 //! `<lhs> <operator> <rhs> == <result>` (e.g. "12+3==15"), where all values are
-//! represented in decimals. This way you can easily copy 'n paste one or
-//! multiple lines into a Python REPL to verify the respective results.
+//! represented in decimals by default. This way you can easily copy 'n paste one
+//! or multiple lines into a Python REPL to verify the respective results.
 //!
 //! #### Examples
 //!
@@ -39,30 +38,29 @@
 //!     cargo run --bin cli -- add -n 2
 //!     ```
 //!
-//! - Export results of 3 random multiply operations to `./out.txt`:
+//! - Export results of 15 random multiply operations to `./out.txt`:
 //!     ```shell
-//!     cargo run --bin cli -- mul -n 3 --export "./out.txt"
+//!     cargo run --bin cli -- mul -n 15 --export "./out.txt"
 //!     ```
 //!
 //! ### Interactive mode
 //!
-//! This mode starts an "evaluation loop", where you can manually specify the
-//! operands and apply the chosen operation.
+//! This mode starts a basic "Read–Eval–Print Loop" (REPL), where you can manually
+//! specify the operands, whereafter the chosen operation is applied and the result
+//! printed.
 //!
 //! The `base` for operands and result output can be set to either `10` or `16`.
 //!
 //! #### Example
 //!
-//! - Interactive multiplication mode and use hexadecimals:
+//! - Interactive multiplication mode using hexadecimals:
 //!     ```shell
 //!     cargo run --bin cli -- mul -i -b 16
 //!     ```
 //!
-//!
-//! Please refer to `cli --help` for all available options and further usage info.
 
 use clap::{Parser, ValueEnum};
-use mpa_lib::mp_int::*;
+use mpa_lib::{mp_int::*, utils::ParseError};
 use rand::{Rng, RngCore};
 use rand_pcg::Pcg64Mcg;
 use std::{
@@ -83,13 +81,10 @@ pub struct Cli {
     #[arg(value_enum)]
     operation: Operation,
 
-    /// Lower bit-width boundary for randomly chosen operands (≥64).
-    #[arg(long, default_value_t = 64)]
-    min_width: usize,
-
-    /// Upper bit-width boundary for randomly chosen operands (≥64).
-    #[arg(long, default_value_t = 512)]
-    max_width: usize,
+    /// Base for number outputs and where applicable inputs.
+    #[arg(long, short, default_value="10",
+        value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
+    base: String,
 
     /// Number of test operations to perform
     #[arg(long, short('n'), default_value_t = 5)]
@@ -103,15 +98,18 @@ pub struct Cli {
     #[arg(long)]
     export: Option<String>,
 
+    /// Lower bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 64)]
+    min_width: usize,
+
+    /// Upper bit-width boundary for randomly chosen operands (≥64).
+    #[arg(long, default_value_t = 512)]
+    max_width: usize,
+
     /// Interactive mode. Allows manually specify operands in a loop.
     /// Enter `q` to quit.
     #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS))]
     interactive: bool,
-
-    /// Base of the input and output in interactive mode.
-    #[arg(long, short, conflicts_with_all(RAND_TEST_MODE_OPTS), default_value="10",
-        value_parser(clap::builder::PossibleValuesParser::new(["10", "16"])))]
-    base: String,
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
@@ -156,20 +154,16 @@ fn run_interactive_mode(args: &Cli) {
     println!("Enter decimal operand, then hit RETURN");
 
     let base = u32::from_str(args.base.as_str()).unwrap();
-    let to_base_string: fn(&MPint) -> String = match base {
-        16 => MPint::to_hex_string,
-        10 => MPint::to_dec_string,
-        _ => panic!("illegal base"),
-    };
+    let (to_base_string, from_base_str) = base_converters(base);
 
     loop {
-        let lhs = match get_operand_from_user(args, "lhs: ") {
+        let lhs = match get_operand_from_user(from_base_str, "lhs: ") {
             UserInputResult::Operand(x) => x,
             UserInputResult::Error => continue,
             UserInputResult::ExitCmd => break,
         };
 
-        let rhs = match get_operand_from_user(args, "rhs: ") {
+        let rhs = match get_operand_from_user(from_base_str, "rhs: ") {
             UserInputResult::Operand(x) => x,
             UserInputResult::Error => continue,
             UserInputResult::ExitCmd => break,
@@ -187,6 +181,19 @@ fn run_interactive_mode(args: &Cli) {
     println!("Good bye!");
 }
 
+type FromBaseResult = Result<MPint, ParseError>;
+
+/// Returns function pointers for the conversions `to` and `from` the given `base`
+/// string representation.
+fn base_converters(base: u32) -> (fn(&MPint) -> String, fn(&str) -> FromBaseResult) {
+    let result: (fn(&MPint) -> String, fn(&str) -> FromBaseResult) = match base {
+        16 => (MPint::to_hex_string, MPint::from_hex_str),
+        10 => (MPint::to_dec_string, MPint::from_dec_str),
+        _ => panic!("illegal base"),
+    };
+    result
+}
+
 enum UserInputResult {
     Operand(MPint),
     Error,
@@ -195,24 +202,17 @@ enum UserInputResult {
 
 /// Tries to get an operand from user. The result is wrapped in `UserInputResult`,
 /// which can contain the actual operand, an error indicator or the exit command.
-fn get_operand_from_user(args: &Cli, msg: &str) -> UserInputResult {
+fn get_operand_from_user(from_base_fn: fn(&str) -> FromBaseResult, msg: &str) -> UserInputResult {
     let input = prompt_user_input(msg);
     let input = input.trim();
     if input == EXIT_CMD {
         return UserInputResult::ExitCmd;
     }
-    let in_base = u32::from_str(args.base.as_str()).unwrap();
 
-    match {
-        match in_base {
-            16 => MPint::from_hex_str(&input),
-            10 => MPint::from_dec_str(&input),
-            _ => panic!("illegal base"),
-        }
-    } {
+    match from_base_fn(&input) {
         Ok(x) => UserInputResult::Operand(x),
         Err(e) => {
-            println!("{e}");
+            eprintln!("{e}");
             UserInputResult::Error
         }
     }
@@ -234,9 +234,13 @@ fn run_randomized_mode(args: &Cli) {
     // Run randomized test operations
     //
 
+    let base = u32::from_str(args.base.as_str()).unwrap();
+    let (to_base_string, _) = base_converters(base);
+
     let mut header = String::new();
     _ = writeln!(header, "+----------- Test: lhs {} rhs -----------+", args.operation);
     _ = writeln!(header, " - Mode: Random operands");
+    _ = writeln!(header, " - output base: {}", base);
     _ = writeln!(header, " - min_width: {} bits", MPint::new_with_width(args.min_width).width());
     _ = writeln!(header, " - max_width: {} bits", MPint::new_with_width(args.max_width).width());
     _ = writeln!(header, " - Test count: {}", args.test_count);
@@ -261,18 +265,18 @@ fn run_randomized_mode(args: &Cli) {
             _ = write!(
                 out_buff,
                 "{}{}{}==",
-                lhs.to_dec_string(),
+                to_base_string(&lhs),
                 args.operation,
-                rhs.to_dec_string()
+                to_base_string(&rhs)
             );
             let result = args.operation.apply(lhs, rhs);
-            _ = write!(out_buff, "{}\n", result.to_dec_string());
+            _ = write!(out_buff, "{}\n", to_base_string(&result));
         } else {
             _ = writeln!(out_buff, "~~~~ TEST {} ~~~~", args.test_count - test_cnt + 1);
-            _ = writeln!(out_buff, "lhs = {lhs}");
-            _ = writeln!(out_buff, "rhs = {rhs}");
+            _ = writeln!(out_buff, "lhs = {}", to_base_string(&lhs));
+            _ = writeln!(out_buff, "rhs = {}", to_base_string(&rhs));
             let result = args.operation.apply(lhs, rhs);
-            _ = writeln!(out_buff, "result = {result}");
+            _ = writeln!(out_buff, "result = {}", to_base_string(&result));
         }
 
         test_cnt -= 1;
