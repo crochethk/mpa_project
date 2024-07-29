@@ -5,8 +5,10 @@
 //!
 //! ## Usage
 //!
-//! There are two modes. Both have in common, that the user must specify the
-//! operation (e.g. "add").
+//! There are two modes, each of which is introduced below.
+//! Both require the user to specify an operation (e.g., "add").
+//! *For a comprehensive list of all available options and further usage
+//! information, please refer to `cli --help`.*
 //!
 //! ### Random test operations mode
 //!
@@ -43,20 +45,19 @@
 //!
 //! ### Interactive mode
 //!
-//! This mode starts an "evaluation loop", where you can manually specify the
-//! operands and apply the chosen operation.
+//! This mode starts a basic "Read–Eval–Print Loop" (REPL), where you can manually
+//! specify the operands, whereafter the chosen operation is applied and the result
+//! printed.
 //!
 //! The `base` for operands and result output can be set to either `10` or `16`.
 //!
 //! #### Example
 //!
-//! - Interactive multiplication mode and use hexadecimals:
+//! - Interactive multiplication mode using hexadecimals:
 //!     ```shell
 //!     cargo run --bin cli -- mul -i -b 16
 //!     ```
 //!
-//!
-//! Please refer to `cli --help` for all available options and further usage info.
 
 use clap::{Parser, ValueEnum};
 use mpa_lib::{mp_int::*, utils::ParseError};
