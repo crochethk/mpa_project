@@ -151,8 +151,8 @@ pub mod mp_int {
         /// Creates a new instance with the desired bit-width and initialized to `0`.
         ///
         /// Actual bit-width will be a multiple of `DIGIT_BITS` and *at least* `width`.
-        pub fn new_with_width(w: usize) -> Self {
-            let bin_count = Self::width_to_bins_count(w);
+        pub fn new_with_width(width: usize) -> Self {
+            let bin_count = Self::width_to_bins_count(width);
             let data = vec![0; bin_count];
             Self::new(data)
         }
