@@ -26,7 +26,7 @@ pub mod mp_int {
     /// Number of bits used per digit in the internal number system.
     /// Must stay ≤64, since e.g. multiplication depends on "2*DIGIT_BITS" width
     /// intermdiate results, while only ≤128bit are available "natively".
-    const DIGIT_BITS: u32 = (size_of::<DigitT>() as u32) * 8;
+    pub const DIGIT_BITS: u32 = (size_of::<DigitT>() as u32) * 8;
 
     #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
     enum Sign {
@@ -132,9 +132,6 @@ pub mod mp_int {
         /// `digits` is expected...
         /// - with respect to base `2^DIGIT_BITS` and
         /// - have __little endian__ order, i.e. least significant digit at index 0.
-        ///
-        /// The resulting width will be calculated automatically based on `digits.len()`.
-        /// So in order to create numbers of same widths, provide Vecs of same lengths.
         ///
         /// # Returns
         /// - New instance of `MPint`, containing the given digits and an appropriate width.
@@ -865,7 +862,7 @@ pub mod mp_int {
     /// Indexing type
     type Idx = usize;
     impl IndexMut<Idx> for MPint {
-        /// Mutable access to digits (with base 2^DIGIT_BITS).
+        /// Mutable access to digits (with base `2^DIGIT_BITS`).
         fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
             &mut self.data[index]
         }
@@ -873,7 +870,7 @@ pub mod mp_int {
     impl Index<Idx> for MPint {
         type Output = DigitT;
 
-        /// Immutable access to digits (with base 2^DIGIT_BITS).
+        /// Immutable access to digits (with base `2^DIGIT_BITS`).
         fn index(&self, index: Idx) -> &Self::Output {
             &self.data[index]
         }
@@ -896,9 +893,12 @@ pub mod mp_int {
         }
     }
 
-    /// Shorthand macro for `MPint::new(vec![...])` that creates `MPint` from a
+    /// Shorthand macro for `MPint::new(vec![...])` which creates `MPint` from a
     /// list of digits, similar to `vec![1,2,3]`.
-    /// Digits are expected to start with the least significant.
+    ///
+    /// Accordingly, the given digits are expected...
+    /// - with respect to base `2^DIGIT_BITS` and
+    /// - to be in __little endian__ order, i.e. starting with the least significant digit.
     #[macro_export]
     macro_rules! mpint {
         ($($d:expr),*) => {
