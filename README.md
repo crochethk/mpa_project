@@ -1,6 +1,6 @@
-# Multi Precision Arithmetics in Rust – an end-of-semester project
+# Multiple Precision Arithmetics in Rust – an end-of-semester project
 
-This repository is part of my semester poject of the lecture "Programming in Rust" 
+This repository is part of my semester project of the lecture "Programming in Rust" 
 at the [RheinMain University of Applied Sciences](https://www.hs-rm.de/en/).
 
 Given the limited intended workload/time and the lectures subject being the Rust
