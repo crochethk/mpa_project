@@ -1462,7 +1462,7 @@ pub mod mp_int {
             mod same_signs {
                 use super::*;
                 #[test]
-                fn same_signs_normal_case() {
+                fn normal_case() {
                     // a>b
                     let a = mpint![0, 0, 42, 1];
                     let b = mpint![42, 42, 42, 0];
@@ -1476,7 +1476,7 @@ pub mod mp_int {
                 }
 
                 #[test]
-                fn same_signs_internal_overflow() {
+                fn internal_overflow() {
                     let a = mpint![0, 0, 0, 3, 1];
                     let b = mpint![0, 0, 0, D_MAX, 0];
                     test_add_correctness(-&a, -&b);
@@ -1484,7 +1484,7 @@ pub mod mp_int {
                 }
 
                 #[test]
-                fn same_signs_nearly_overflow_1() {
+                fn nearly_overflow_1() {
                     let a = mpint![D_MAX - 1, D_MAX - 42, D_MAX - 2];
                     let b = mpint![1, 42, 2];
                     test_add_correctness(-&a, -&b);
@@ -1492,7 +1492,7 @@ pub mod mp_int {
                 }
 
                 #[test]
-                fn same_signs_nearly_overflow_2() {
+                fn nearly_overflow_2() {
                     let a = mpint![0, 0, 0];
                     let b = mpint![D_MAX, D_MAX, D_MAX];
                     test_add_correctness(-&a, -&b);
