@@ -1459,7 +1459,8 @@ pub mod mp_int {
             use super::*;
             // TODO add tests for extended result because of "carry/overflow" <<<<<<<<<<<<<<< IMPORTANT
             // TODO add 1, 2 "sanity" tests for different width operands
-            create_op_correctness_tester!(test_addition_correctness, +);
+            create_op_correctness_tester!(test_add_correctness, +);
+
 
             mod same_signs {
                 use super::*;
@@ -1468,34 +1469,34 @@ pub mod mp_int {
                     // a>b
                     let a = mpint![0, 0, 42, 1];
                     let b = mpint![42, 42, 42, 0];
-                    test_addition_correctness(-&a, -&b);
-                    test_addition_correctness(a, b);
+                    test_add_correctness(-&a, -&b);
+                    test_add_correctness(a, b);
                     // a<b
                     let a = mpint![42, 42, 42, 0];
                     let b = mpint![1, 2, 3, 4];
-                    test_addition_correctness(-&a, -&b);
-                    test_addition_correctness(a, b);
+                    test_add_correctness(-&a, -&b);
+                    test_add_correctness(a, b);
                 }
                 #[test]
                 fn same_signs_internal_overflow() {
                     let a = mpint![0, 0, 0, 3, 1];
                     let b = mpint![0, 0, 0, D_MAX, 0];
-                    test_addition_correctness(-&a, -&b);
-                    test_addition_correctness(a, b);
+                    test_add_correctness(-&a, -&b);
+                    test_add_correctness(a, b);
                 }
                 #[test]
                 fn same_signs_nearly_overflow_1() {
                     let a = mpint![D_MAX - 1, D_MAX - 42, D_MAX - 2];
                     let b = mpint![1, 42, 2];
-                    test_addition_correctness(-&a, -&b);
-                    test_addition_correctness(a, b);
+                    test_add_correctness(-&a, -&b);
+                    test_add_correctness(a, b);
                 }
                 #[test]
                 fn same_signs_nearly_overflow_2() {
                     let a = mpint![0, 0, 0];
                     let b = mpint![D_MAX, D_MAX, D_MAX];
-                    test_addition_correctness(-&a, -&b);
-                    test_addition_correctness(a, b);
+                    test_add_correctness(-&a, -&b);
+                    test_add_correctness(a, b);
                 }
             }
 
@@ -1507,25 +1508,25 @@ pub mod mp_int {
                     let a = mpint![10, 20, 30, 40];
                     let b = mpint![1, 2, 3, 4];
                     // a + (–b)
-                    test_addition_correctness(a.clone(), -&b);
+                    test_add_correctness(a.clone(), -&b);
                     // (-a) + b
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(-a, b);
                 }
                 #[test]
                 fn internal_underflow_lhs_gt_rhs_1() {
                     // a>b:
                     let a = mpint![0, D_MAX, 2, 0, 1];
                     let b = mpint![0, 0, 42, 0, 0];
-                    test_addition_correctness(a.clone(), -&b);
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(a.clone(), -&b);
+                    test_add_correctness(-a, b);
                 }
                 #[test]
                 fn internal_underflow_lhs_gt_rhs_2() {
                     // a>b:
                     let a = mpint![0, 0, 0, 0, 1];
                     let b = mpint![0, 42, 0, 0, 0];
-                    test_addition_correctness(a.clone(), -&b);
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(a.clone(), -&b);
+                    test_add_correctness(-a, b);
                 }
 
                 #[test]
@@ -1534,25 +1535,25 @@ pub mod mp_int {
                     let a = mpint![1, 2, 3, 4];
                     let b = mpint![10, 20, 30, 40];
                     // a + (–b)
-                    test_addition_correctness(a.clone(), -&b);
+                    test_add_correctness(a.clone(), -&b);
                     // (-a) + b
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(-a, b);
                 }
                 #[test]
                 fn internal_underflow_lhs_lt_rhs_1() {
                     // a<b:
                     let a = mpint![0, 0, 42, 0, 0];
                     let b = mpint![0, D_MAX, 2, 0, 1];
-                    test_addition_correctness(a.clone(), -&b);
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(a.clone(), -&b);
+                    test_add_correctness(-a, b);
                 }
                 #[test]
                 fn internal_underflow_lhs_lt_rhs_2() {
                     // a<b:
                     let a = mpint![0, 42, 0, 0, 0];
                     let b = mpint![0, 0, 0, 0, 1];
-                    test_addition_correctness(a.clone(), -&b);
-                    test_addition_correctness(-a, b);
+                    test_add_correctness(a.clone(), -&b);
+                    test_add_correctness(-a, b);
                 }
             }
 
@@ -1593,17 +1594,17 @@ pub mod mp_int {
                 fn same_signs() {
                     let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
                     let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
-                    test_addition_correctness(a.clone(), b.clone());
-                    test_addition_correctness(-a, -b);
+                    test_add_correctness(a.clone(), b.clone());
+                    test_add_correctness(-a, -b);
                 }
                 #[test]
                 fn diff_signs() {
                     let a = MPint::new(<Vec<u64>>::from(LARGE_NUM_1));
                     let b = MPint::new(<Vec<u64>>::from(LARGE_NUM_2));
-                    test_addition_correctness(a.clone(), -&b); //a + -b
-                    test_addition_correctness(-&a, b.clone()); //-a + b
-                    test_addition_correctness(b.clone(), -&a); // b + -a
-                    test_addition_correctness(-b, a); //-b + a
+                    test_add_correctness(a.clone(), -&b); //a + -b
+                    test_add_correctness(-&a, b.clone()); //-a + b
+                    test_add_correctness(b.clone(), -&a); // b + -a
+                    test_add_correctness(-b, a); //-b + a
                 }
             }
         }
