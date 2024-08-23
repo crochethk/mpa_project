@@ -222,6 +222,7 @@ pub mod mp_int {
             self.data.len()
         }
 
+        // TODO ------------Test this at least basic
         /// Creates new `MPint` from the given decimal string `num_str`.
         /// Other than the first character, which may be a sign (`+`/`-`), only
         /// decimal digits are allowed inside `num_str`.
@@ -358,6 +359,7 @@ pub mod mp_int {
             hex
         }
 
+        //TODO add basic unittests
         /// Derives a decimal string representation of `self`, utilizing the
         /// _Division-Remainder Method_.
         pub fn to_dec_string(&self) -> String {
@@ -655,9 +657,14 @@ pub mod mp_int {
         }
     }
 
+    // TODO this is untested!
+    // TODO DEBUG WHEN SOMETHING UNEXPECTED HAPPENS
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
+            // // let mut mp_rhs = MPint::new_with_width(self.width());
+            // // mp_rhs[0] = rhs as DigitT;
+            // // mp_rhs[1] = (rhs >> DIGIT_BITS) as DigitT;
             let mp_rhs = MPint::new(rhs as u128);
             *self += mp_rhs;
         }
@@ -744,6 +751,8 @@ pub mod mp_int {
             self.data.rotate_left(n);
         }
 
+        //TODO| →→→unit test←←← if this works as expected (especially whether there arent too many digits truncated)
+        //TODO| could have issue of removing too many zero digits, e.g. when doing num*1 and num has trailing zeros.
         /// Removes empty (i.e. `0`) bins from the end
         fn trim_empty_end(&mut self, min_len: usize) {
             // Get first non-zero digit index from the end
@@ -1456,7 +1465,8 @@ pub mod mp_int {
 
         mod test_add {
             use super::*;
-
+            // TODO add tests for extended result because of "carry/overflow" <<<<<<<<<<<<<<< IMPORTANT
+            // TODO add 1, 2 "sanity" tests for different width operands
             create_op_correctness_tester!(test_addition_correctness, +);
 
             mod same_signs {
