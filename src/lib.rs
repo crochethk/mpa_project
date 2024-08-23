@@ -1457,10 +1457,7 @@ pub mod mp_int {
 
         mod test_add {
             use super::*;
-            // TODO add tests for extended result because of "carry/overflow" <<<<<<<<<<<<<<< IMPORTANT
-            // TODO add 1, 2 "sanity" tests for different width operands
             create_op_correctness_tester!(test_add_correctness, +);
-
 
             mod same_signs {
                 use super::*;
@@ -1477,6 +1474,7 @@ pub mod mp_int {
                     test_add_correctness(-&a, -&b);
                     test_add_correctness(a, b);
                 }
+
                 #[test]
                 fn same_signs_internal_overflow() {
                     let a = mpint![0, 0, 0, 3, 1];
@@ -1484,6 +1482,7 @@ pub mod mp_int {
                     test_add_correctness(-&a, -&b);
                     test_add_correctness(a, b);
                 }
+
                 #[test]
                 fn same_signs_nearly_overflow_1() {
                     let a = mpint![D_MAX - 1, D_MAX - 42, D_MAX - 2];
@@ -1491,12 +1490,45 @@ pub mod mp_int {
                     test_add_correctness(-&a, -&b);
                     test_add_correctness(a, b);
                 }
+
                 #[test]
                 fn same_signs_nearly_overflow_2() {
                     let a = mpint![0, 0, 0];
                     let b = mpint![D_MAX, D_MAX, D_MAX];
                     test_add_correctness(-&a, -&b);
                     test_add_correctness(a, b);
+                }
+
+                #[test]
+                fn diff_widths_1_normal_cases() {
+                    let a = mpint![0, 9, 8, 7];
+                    let b = mpint![100, 10, 1, 0, 0, 0];
+                    test_add_correctness(a, b);
+                    let a = mpint![0, 9, 0, 8, 7, 6];
+                    let b = mpint![100, 10, 1];
+                    test_add_correctness(a, b);
+                }
+
+                #[test]
+                fn diff_widths_2_internal_overflow() {
+                    let a = mpint![D_MAX, 9, 8, 7, 6, 0];
+                    let b = mpint![100];
+                    test_add_correctness(a.clone(), b.clone());
+                    test_add_correctness(b.clone(), a.clone());
+                }
+
+                #[test]
+                fn diff_widths_3_extending() {
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
+                    let b = mpint![1];
+                    assert_eq!(&a + &b, mpint![0, 0, 0, 1]);
+                    test_add_correctness(a.clone(), b.clone());
+                    test_add_correctness(b.clone(), a.clone());
+                    let a = mpint![D_MAX, D_MAX, D_MAX];
+                    let b = mpint![D_MAX];
+                    assert_eq!(&a + &b, mpint![D_MAX - 1, 0, 0, 1]);
+                    test_add_correctness(a.clone(), b.clone());
+                    test_add_correctness(b.clone(), a.clone());
                 }
             }
 
@@ -1539,6 +1571,7 @@ pub mod mp_int {
                     // (-a) + b
                     test_add_correctness(-a, b);
                 }
+
                 #[test]
                 fn internal_underflow_lhs_lt_rhs_1() {
                     // a<b:
@@ -1547,6 +1580,7 @@ pub mod mp_int {
                     test_add_correctness(a.clone(), -&b);
                     test_add_correctness(-a, b);
                 }
+
                 #[test]
                 fn internal_underflow_lhs_lt_rhs_2() {
                     // a<b:
