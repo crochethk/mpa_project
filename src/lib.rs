@@ -658,7 +658,7 @@ pub mod mp_int {
     impl AddAssign<DoubleDigitT> for MPint {
         /// Inplace `+=` operator for `DoubleDigitT` right-hand side.
         fn add_assign(&mut self, rhs: DoubleDigitT) {
-            let mp_rhs = MPint::new(rhs);
+            let mp_rhs = MPint::new(rhs as u128);
             *self += mp_rhs;
         }
     }
