@@ -1,0 +1,15 @@
+\section{Einleitung}
+
+    \subsection{Was ist Multiple Precision und warum wird es benötigt?}
+        Standard Zahlentypen von Programmiersprachen haben meistens eine feste Größe bzgl. ihrer Bitanzahl. Das liegt nicht zuletzt daran, dass übliche CPUs Operationen für diese Typen in Hardware implementieren, um entsprechend effizient sein zu können.
+
+        Der Integer-Typ \texttt{u32} hat bspw. 32 Bit zur Verfügung. Daraus und der Tatsache wie Ganzzahlen üblicherweise kodiert werden folgt, dass die höchstmögliche, durch \texttt{u32} abbildbare Zahl \(2^{32}-1=\num{4294967295}\) ist.
+
+        Bei Fließkommazahlen verhält es sich analog: nur eine bestimmte Anzahl Nachkommastellen kann mit einer festen Speichergröße abgebildet werden (vgl. IEEE 754).
+
+        Anwendungsfelder wie Kryptografie, Kombinatorik oder Berechnungen im Finanzsektor sprengen sehr schnell die Grenzen der nativ bereitgestellten Zahlengröße bzw. Genauigkeit. Hier sind Lösungen notwendig, die Operationen mit beliebig großen bzw. genauen Zahlen zur Verfügung stellen --- die sog. \emph{Multiple Precision Arithmetics} (dt. ,,Langzahlarithmetik'').
+
+        \subsection{Projektumfang}
+        In diesem Projekt sollte eine Bibliothek in Rust implementiert werden, die Langzahlarithmetik für sog. \emph{Multiple Precision Integer} (im Folgenden \mpi\ genannt) bereitstellt.
+        Dabei wurde der Umfang auf Addition, Subtraktion und Multiplikation vereinbart.
+        Des Weiteren sollen geeignete Unit-Tests die korrekte Funktionsweise der Kernfunktionalität sicherstellen.

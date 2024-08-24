@@ -1,0 +1,83 @@
+
+\appendix
+\section{Operand Scanning Code} \label{apdx:opscan}
+\begin{lstlisting}[language=Rust, style=boxed]
+    /// Multiplies two `MPint`, extending the width as necessary.
+    /// This uses a kind of "Operand-Scanning" algorithm.
+    fn extending_operand_scan_mul(&self, rhs: &Self) -> Self {
+        self.assert_same_width(rhs);
+
+        // Zero short circuit
+        if self.is_zero() {
+            return self.clone();
+        } else if rhs.is_zero() {
+            return rhs.clone();
+        }
+
+        let result_sign = if self.sign == rhs.sign {
+            // same signs implicate positive result
+            Sign::Pos
+        } else {
+            // different signs implicate negative result
+            Sign::Neg
+        };
+        let max_new_width = self.width * 2;
+
+        // ~~~~ Main ~~~~
+
+        // Given `a*b = a0..an * b0..bn` where `a0..an` and `b0..bn` are the digits of the factors.
+        // Each row of following matrices represents the multiplication of a digit of one factor
+        // with each digit of the other factor, with offset of the first factors digit-position.
+
+        // Matrix with: "digits_count" rows and "2*digits" columns
+        let mut prod_rows = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
+
+        // `prod_carries[i][j]` represents the carry, which resulted from multiplying the i-th digit
+        // of one factor by the (j-1)-th digit of the other factor. This carry must then be added to
+        // the j-th digit of the end result.
+        // First column of carries is always zero.
+        let mut prod_carries = vec![vec![0 as DigitT; self.len() * 2]; self.len()];
+
+        for i in 0..prod_rows.len() {
+            let b_i = rhs[i] as DoubleDigitT;
+
+            for j in 0..self.len() {
+                let a_j = self[j] as DoubleDigitT;
+                let prod_ij = a_j * b_i;
+
+                prod_rows[i][j + i] = prod_ij as DigitT;
+                prod_carries[i][j + i + 1] = (prod_ij >> DIGIT_BITS) as DigitT;
+            }
+        }
+
+        // Sum columns
+
+        let mut end_product = MPint::new(max_new_width);
+        let mut col_carry = 0 as DigitT;
+        for j in 0..prod_rows[0].len() {
+            // Add last columns carry
+            end_product += col_carry;
+
+            for i in 0..prod_rows.len() {
+                col_carry = end_product.carry_ripple_add_bins_inplace(&MPint::from_digit(
+                prod_rows[i][j],
+                max_new_width,
+                )) as u64;
+
+                col_carry += end_product.carry_ripple_add_bins_inplace(&MPint::from_digit(
+                prod_carries[i][j],
+                max_new_width,
+                )) as u64;
+            }
+
+            // Make sure next column is added to the correct position of the number system
+            end_product.rotate_digits_right(1);
+        }
+
+        // ~~~~ Epilog ~~~~
+        end_product.trim_empty_end(self.len());
+        end_product.sign = result_sign;
+
+        end_product
+    }
+\end{lstlisting}

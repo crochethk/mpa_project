@@ -1,0 +1,59 @@
+
+\usepackage[utf8]{inputenc} % Ermöglicht die Eingabe von deutschen Sonderzeichen im Quelltext
+\usepackage[T1]{fontenc} % Europäische Kodierung der Ausgabeschrift
+\usepackage{lmodern} % Lädt die Schriftart Latin Modern, die universell skalierbar ist
+\usepackage[ngerman]{babel} % Silbentrennung nach neuer deutscher Rechtschreibung
+\usepackage{amsmath} % Mathematik-Paket der American Mathematical Society
+\usepackage{graphicx} % Erlaubt das Einfügen von Bildern per \includegraphics{}
+\usepackage{float}
+
+%--------------- custom packages
+\usepackage{fullpage}
+%\usepackage{todonotes}
+\usepackage{siunitx} % für Dezimal Trennzeichen
+
+\usepackage{listings}
+\lstset{
+    frame=single,
+    basicstyle=\ttfamily,
+    columns=flexible,
+    showstringspaces=false,
+    breakautoindent=true,
+    breaklines=true
+}
+\usepackage{listings-rust}
+\usepackage{xcolor}
+
+
+
+
+
+\usepackage{dirtree}
+
+% \usepackage{tikz}
+
+% \usepackage{caption}
+% \captionsetup{
+	%  figurename=Abb.,
+	% %  tablename=Tab.
+	% }
+
+% Workaround für "--" wird zu "–" trotz \texttt
+\usepackage{microtype}
+\DisableLigatures{encoding = T1, family = tt*}
+
+
+\usepackage{hyperref}
+%------------------------------------
+
+%--------------- custom Commands
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% Abkürzung für Multiple Precision Integer
+\newcommand{\mpi}{\emph{MPI}}
+
+% INLINE code
+\newcommand{\ilc}[1]{\texttt{#1}}
+
+
+
