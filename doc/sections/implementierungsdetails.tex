@@ -14,7 +14,7 @@
         Prinzipiell funktioniert die implementierte Addition wie eine Reihenschaltung von ,,\ilc{u64}-Volladdierern'' (vgl. \autoref{fig:fulladderchain}).
 
         Die Ziffern $a_i$ und $b_i$ der Summanden $a=a_{n}a_{n-1}\dots{}a_{1}a_{0}$ und $b=b_{n}b_{n-1}\dots{}b_{1}b_{0}$ werden dabei jeweils mit Übertrag\footnote{i.A. kann bei einer Addition höchstens ein Übertrag entstehen, der genau eine Ziffer benötigt ($\hat{=}$ 1 Bit)} addiert.
-        $c_i$ wird bei Addition des nächsten Ziffernpaars wieder in den Volladdierer eingespeist usw.
+        $c_i$ wird bei Addition des nächsten Ziffernpaares wieder in den Volladdierer eingespeist usw.
 
         Die Summe $s=a+b$ ist also:
         \begin{align*}
@@ -35,14 +35,14 @@
         Abstrakt betrachtet entspricht dieses Konzept einem sog. \emph{Carry-Ripple-Addierer}.
 
     \paragraph*{Gleiche Vorzeichen}
-        Da intern Vorzeichen und absoluter Wert unabhängig gespeichert sind, kann die Summe bei gleichen Vorzeichen ohne Weiteres wie oben beschrieben berechnet werden.
+        Da Vorzeichen und absoluter Wert intern unabhängig voneinander gespeichert sind, kann die Summe bei gleichen Vorzeichen ohne Weiteres, wie oben beschrieben, berechnet werden.
 
     \paragraph*{Unterschiedliche Vorzeichen}
         Unterscheiden sich die Vorzeichen, sind weitere Schritte erforderlich. Hier tritt eine tatsächliche Subtraktion auf.
 
 
         Dank der binären Repräsentation und Eigenschaften des 2-Komplements ist es möglich die Subtraktion auf eine Addition zurückzuführen.
-        Hierzu kann man zur Vereinfachung die Summanden erst einmal so ,,ordnen'', dass $b$ immer der negative und $a$ der positive Summand ist ($a \ge 0$, $b \le 0$). Man kann die Operation aufschreiben als:
+        Hierzu kann man zur Vereinfachung die Summanden erst einmal so ,,ordnen'', dass $a$ immer  der positive und $b$ der negative Summand ist ($a \ge 0$, $b \le 0$). Man kann die Operation dann aufschreiben als:
         \begin{equation*}
         s = a - |b|
         \end{equation*}
@@ -70,7 +70,7 @@
     Hierbei werden die einzelnen Ziffern der \emph{Operanden} miteinander zu Teilprodukten und Überträgen multipliziert. Anschließend wird alles entsprechend des jeweiligen Stellenwerts zum Gesamtergebnis (Produkt) addiert (vgl. \autoref{fig:opscanning}).
 
     Der Vollständigkeit halber ist der entsprechende Code als \autoref{apdx:opscan} inkludiert.
-    Im Vergleich zum nachfolgenden Ansatz, fällt dort auf, dass u.a. zwei 2D-Matrizen für Zwischenergebnisse und mehrfaches Iterieren benötigt wurden.
+    Im Vergleich zum nachfolgenden Ansatz, fällt dort auf, dass u.a. zwei 2D-Matrizen für Zwischenergebnisse und mehrfaches Iterieren benötigt werden.
 
     \begin{figure}[H]
         \centering
@@ -92,7 +92,7 @@
 
     Das funktioniert deshalb, weil Ziffern der Operanden nur einen beschränkten Einflussbereich auf Ziffern des Produkts haben (vgl. \autoref{fig:prodscanningeinfluss}). Beispielsweise wird die erste Ziffer des Produkts ausschließlich von den beiden ersten Ziffern der Operanden beeinflusst. Bei der letzten Ziffer des Produkts verhält es sich analog, nur dass evtl. ein Übertrag aus den vorherigen Ziffern einfließt. Dementsprechend muss man von ,,rechts nach links'' durch das Produkt iterieren.
 
-    Dabei betrachtet der implementierte Algorithmus die Operanden als hätten sie gleich vielen Ziffern und füllt bei unterschiedlicher Anzahl ggf. den ,,kürzeren'' Operand links mit Nullen auf.
+    Dabei betrachtet der implementierte Algorithmus die Operanden als hätten sie gleich viele Ziffern. Bei unterschiedlicher Anzahl wird der ,,kürzere'' Operand ggf. links mit Nullen aufgefüllt.
 
     Seien $a=a_{n}a_{n-1}\dots{}a_{1}a_{0}$ und $b=b_{n}b_{n-1}\dots{}b_{1}b_{0}$ die beiden Operanden.
     Da das Produkt $p = a \cdot b$ zweier Zahlen mit jeweils $n$ Ziffern höchstens $2 \cdot n$ Ziffern haben kann, gilt $p=p_{2n}p_{2 n-1}\dots{}p_{1}p_{0}$.

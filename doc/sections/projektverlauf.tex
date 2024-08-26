@@ -1,20 +1,20 @@
 \section{Projektverlauf}
-Zu Beginn war der Umfang des Projekts noch nicht vollständig abgesteckt, weshalb ich mich zuerst auf natürliche Zahlen konzentriert habe. Zudem bin ich erst ein mal davon ausgegangen, dass die Bit-Breite möglichst ,,konstant'' bleiben und Operanden auch die gleichen Breiten haben sollen.
-Während das in bestimmten Szenarien, in denen man ,,volle'' Kontrolle über die Breite braucht nützlich sein kann, erwies es sich bei der Erstellung von Beispiel Code als sehr umständlich und unintuitiv. Infolgedessen habe ich die Bibiliothek so angepasst, dass sich die Breite dynamisch anpasst und Operanden unterschiedlicher Breite grundsätzlich erlaubt sind.
+Zu Beginn war der Umfang des Projekts noch nicht vollständig abgesteckt, weshalb ich mich zuerst auf natürliche Zahlen konzentriert habe. Außerdem bin ich erst ein mal davon ausgegangen, dass die Bit-Breite möglichst ,,konstant'' bleiben und Operanden auch die gleichen Breiten haben sollen.
+Während das in bestimmten Szenarien, in denen man ,,volle'' Kontrolle über die Breite braucht nützlich sein kann, erwies es sich bei der Erstellung von Code-Beispielen als sehr umständlich und nicht intuitiv. Infolgedessen habe ich die Bibliothek so angepasst, dass sich die Breite dynamisch anpasst und Operanden unterschiedlicher Breite grundsätzlich erlaubt sind.
 
 
 \subparagraph*{\mpi\ Repräsentation}
-Zuerst stellte sich aber die zentrale Frage ,,Wie speichert man solche großen Zahlen?''.
-Aus dem Studium, wusste ich, dass vorzeichenlose Integer üblicherweise durch ein binäres Stellenwertsystem gespeichert werden, wobei jedes Bit das Vorhandensein der entsprechenden Zweierpotenzen angibt.
-Analog verhält es sich mit dem im Alltag benutzten Dezimalsystem, nur mit Basis $10$ statt $2$. Allgemein gilt:
+Zuerst stellte sich aber die zentrale Frage: ,,Wie speichert man solche großen Zahlen?''.
+Aus dem Studium, wusste ich, dass vorzeichenlose Ganzzahlen üblicherweise durch ein binäres Stellenwertsystem gespeichert werden, wobei jedes Bit das Vorhandensein der entsprechenden Zweierpotenzen angibt.
+Analog verhält es sich mit dem im Alltag benutzten Dezimalsystem -- nur mit Basis $10$ statt $2$. Allgemein gilt:
 
 Sei $a=a_{n}a_{n-1}\dots{}a_{1}a_{0}$ eine Zahl im Stellenwertsystem zur Basis $B$ mit $n$ Ziffern, dann gilt:
 \begin{equation}
 a = a_{n-1} \cdot B^{n-1} + \dots{} + a_{1} \cdot B^{1} + a_{0} \cdot B^{0}
 \end{equation}
 
-Daran angelehnt, entschied ich mich dazu, zu die \mpi\ als eine Liste aus Ziffern eines internen Stellenwertsystems zu konstruieren.
-Jede Ziffer entspricht dabei einer Zahl eines nativen, vorzeichenlosen Typs\footnote{Später stellt sich heraus, dass es wichtig diesen Typ so zu wählen, dass es auch einen mindestens doppelt so breiten, nativen Typ gibt, denn für die ein oder andere Operation sind Zwischenergebnisse doppelter Breite notwendig.}.
+Daran angelehnt, entschied ich mich dazu, die \mpi\ als eine Liste aus Ziffern eines internen Stellenwertsystems zu konstruieren.
+Jede Ziffer entspricht dabei einer Zahl eines vorzeichenlosen, nativen Typs\footnote{Später stellt sich heraus, dass es wichtig ist diesen Typ so zu wählen, dass es auch einen mindestens doppelt so breiten, nativen Typ gibt, da für die ein oder andere Operation Zwischenergebnisse doppelter Breite notwendig sind.}.
 
 
 Ich entschied mich für \ilc{u64}. Die Ziffern $a_i$ haben also eine Breite von 64 Bit.
@@ -24,27 +24,27 @@ Ein \mpi\ entspricht dann der Formel:
 a = a_{n-1} \cdot (2^{64})^{n-1} + \dots{} + a_{1} \cdot (2^{64})^{1} + a_{0} \cdot (2^{64})^{0}
 \end{equation}
 
-Im Prinzip kann man sich den so abgebildeten \mpi\ als eine lückenlose Folge von $n \cdot 64$ Bits vorstellen, wie sie es auch bei nativen vorzeichenlosen Integern der Fall ist.
+Im Prinzip kann man sich den so abgebildeten \mpi\ als eine lückenlose Folge von $n \cdot 64$ Bits vorstellen, wie es auch bei vorzeichenlosen, nativen Integern der Fall ist.
 
 \subparagraph*{Einführung Vorzeichen}
-Bei der Implementierung der Subtraktion, fiel mir auf, dass es durchaus Sinn machen würde die Bibliothek direkt auf Ganzzahlen auszuweiten.
-Zum einen erlaubt das, die Subtraktion bezüglich Addition einer "negierten" Zahl zu implementieren.
-Zum anderen wären sonst ohnehin Fallunterscheidungen notwendig.
+Bei der Implementierung der Subtraktion fiel mir auf, dass es durchaus Sinn machen würde, die Bibliothek direkt auf (vorzeichenbehaftete) Ganzzahlen auszuweiten.
+Zum einen erlaubt das, die Subtraktion bezüglich Addition einer negierten Zahl zu implementieren.
+Zum anderen wären bei der Subtraktion vorzeichenloser \mpi\ ohnehin Fallunterscheidungen notwendig.
 
-Das habe ich dann schließlich mit Hilfe eines \ilc{enum Sign} umgesetzt und einem entsprechenden Feld im \mpi\ Datentyp. D.h. intern wird der absolute Wert der abgebildeten Zahl unabhängig vom Vorzeichen gespeichert. Das hat den Vorteil, dass bei der Subtraktion die Eigenschaften vorzeichenloser Ganzzahlen ausgenutzt werden können, insbesondere die Subtraktion durch Addition des 2-Komplements. In diesem Zuge wurde auch \ilc{struct MPuint} zu \ilc{struct MPint} umbenannt.
+Das habe ich schließlich mit Hilfe eines \ilc{enum Sign} und einem entsprechenden Feld im \mpi\ Datentyp umgesetzt. D.h. intern wird der absolute Wert der abgebildeten Zahl unabhängig vom Vorzeichen gespeichert. Das hat den Vorteil, dass bei der Subtraktion die Eigenschaften vorzeichenloser Ganzzahlen ausgenutzt werden können, insbesondere die Subtraktion durch Addition des 2-Komplements. In diesem Zuge wurde auch \ilc{struct MPuint} zu \ilc{struct MPint} umbenannt.
 
 
 
-\subparagraph*{Multiplikationsansätze} Die Multiplikation habe ich zuerst angelehnt an ,,schriftliche Multiplikation'' (aka. Long Multiplication) umgesetzt, welche dem \emph{Operand Scanning} Ansatz folgt.
-Diese wurde später durch eine etwas sauberere und effizientere Variante ersetzt, welche den sog. \emph{Product Scanning} Ansatz nutzt.
+\subparagraph*{Multiplikationsansätze} Die Multiplikation habe ich zuerst an ,,schriftliche Multiplikation'' (aka. Long Multiplication) angelehnt umgesetzt, welche dem \emph{Operand Scanning} Ansatz folgt.
+Diese wurde später durch eine etwas sauberere und effizientere Variante ersetzt, welche \emph{Product Scanning} nutzt.
 
 
 \subparagraph*{Ein- und Ausgabe von \mpi{}s}
-Wie erwähnt sind die internen Ziffern auch als eine lückenlose Folge von Bits interpretierbar. Dementsprechend ist es sehr einfach möglich, einen solchen \mpi\ durch Aneinanderreihung der Ziffern, z.B. im Hexadezimalsystem, zu einem Hex-String zusammenzubauen und auszugeben (\ilc{to\_hex\_string}). Das war auch der erste Ansatz.
+Wie erwähnt sind die internen Ziffern auch als eine lückenlose Folge von Bits interpretierbar. Dementsprechend ist es sehr einfach möglich, einen solchen \mpi\ durch Aneinanderreihung der Ziffern, z.B. im Hexadezimalsystem, zu einem Hex-String zusammenzubauen und auszugeben (\ilc{to\_hex\_string}). Das war auch der erste Ansatz für die Ausgabe.
 
 Später folgte eine Möglichkeit Dezimal-Strings auszugeben (\ilc{to\_dec\_string}). Dabei kommt die sog. \emph{Division-Remainder Method} zum Einsatz.
 
-Zur Eingabe wurden, neben diversen Konstruktoren (s. \autoref{sec:projektergebnisse}) auch zwei Varianten zum Parsen eines \mpi\ aus Strings zur Verfügung gestellt:
+Zur Eingabe wurden, neben diversen Konstruktoren (s. \autoref{sec:projektergebnisse}) auch zwei Varianten zur Konversion von Strings zu \mpi\ zur Verfügung gestellt:
 
 \begin{description} \tightlist
     \item [\ilc{from\_hex\_str}] -- Dank des internen Zahlensystem relativ trivial implementierbar.
@@ -54,7 +54,7 @@ Zur Eingabe wurden, neben diversen Konstruktoren (s. \autoref{sec:projektergebni
 
 \subparagraph*{Ergebnis Verifikation}
 Zur Verifikation der korrekten Funktionsweise -- nicht zuletzt durch die Dozenten -- sollte es mindestens die Möglichkeit geben, Ergebnisse aus Operationen in einem geeigneten Format auszugeben.
-Das habe ich wie oben bereits beschrieben umgesetzt. Zur Vereinfachung dieser manuellen Prüfung der Ergebnisse, habe ich zusätzlich eine kleine CLI erstellt, die Ausführung arithmetischer Operationen mit \mpi\ erlaubt, ohne dass eine Zeile Code geschrieben werden muss (siehe \nameref{sec:extras}). Sie ist als ,,standard Binary'' des Projekts konfiguriert.
+Das habe ich wie oben bereits beschrieben umgesetzt. Zur Vereinfachung dieser manuellen Prüfung der Ergebnisse, habe ich zusätzlich eine kleine CLI erstellt, welche die Ausführung arithmetischer Operationen mit \mpi\ erlaubt, ohne dass eine Zeile Code geschrieben werden muss (siehe \nameref{sec:extras}). Sie ist als ,,standard Binary'' des Projekts konfiguriert.
 
 \subparagraph*{Python in Unit-Tests}
-Um das Erstellen neuer Tests zu vereinfachen und sie nicht noch mehr aufzublähen, habe ich weitestgehend darauf verzichtet, erwartete Ergebnisse der arithmetischen Operationen zu ,,hardcoden''. Stattdessen kommt mit \ilc{pyo3} ein Python Interpreter in Verbindung mit einem kleinen Skript (\ilc{mpint\_test\_helper.py}) zum Einsatz, der die von der Bibliothek berechneten Ergebnisse verifiziert.
+Um das Erstellen neuer Tests zu vereinfachen und sie nicht noch mehr aufzublähen, habe ich weitestgehend darauf verzichtet, erwartete Ergebnisse der arithmetischen Operationen zu ,,hardcoden''. Stattdessen kommt mit dem \ilc{crate} \ilc{pyo3} ein Python Interpreter in Verbindung mit einem kleinen Skript (\ilc{mpint\_test\_helper.py}) zum Einsatz, der die von der Bibliothek berechneten Ergebnisse verifiziert.

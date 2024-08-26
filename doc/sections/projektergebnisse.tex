@@ -14,7 +14,7 @@
             \ilc{utils}: Enthält mehr oder weniger lose Hilfsfunktionen und -strukturen, die von anderen Teilen der Bibliothek verwendet werden.
         \end{itemize}
 
-        Desweiteren sind eine CLI (\texttt{src/bin/demo\_cli.rs}) und mehrere Beispiele (\texttt{examples/*.rs}) vorhanden. Mehr hierzu in \autoref{sec:extras}.
+        Des Weiteren sind eine CLI (\texttt{src/bin/demo\_cli.rs}) und mehrere Beispiele (\texttt{examples/*.rs}) vorhanden. Hierzu mehr in \autoref{sec:extras}.
 
     \subsubsection*{Modul \ilc{mp\_int}}
         Dieses Modul enthält den Datentyp und die Funktionalität für \mpi.
@@ -58,7 +58,7 @@
 
             Wie bereits erwähnt wird in Unit-Tests von Python Gebrauch gemacht. Das Vorgehen ist in zwei Phasen unterteilt:
             \begin{enumerate}
-                \item Mit \ilc{mpint\_tests::verify\_arithmetic\_result(\dots)} wird die Operation und deren Ergebnis an eine Funktion in \ilc{mpint\_test\_helper.py} übergeben. Zurück kommt ein Tupel, mit der Information, ob das Ergebnis ok ist und einer passenden textuellen Meldung.
+                \item Mit \ilc{mpint\_tests::verify\_arithmetic\_result(\dots)} wird die Operation und deren Ergebnis an eine Funktion in \ilc{mpint\_test\_helper.py} übergeben. Zurück kommt ein Tupel, mit der Information, ob das Ergebnis stimmt und einer passenden textuellen Meldung.
 
                 \item Das Makro \ilc{mpint\_tests::create\_op\_correctness\_tester!} dient dazu, Code Duplikate zu vermeiden. Es erstellt für einen gegebenen Operator die entsprechend angepasste Test-Funktion. Hier ist der eigentliche \ilc{assert!} enthalten, welcher die vom Python-Skript erhaltenen Daten nutzt.
             \end{enumerate}
