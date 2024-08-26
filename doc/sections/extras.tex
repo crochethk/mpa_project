@@ -1,0 +1,56 @@
+\section{Extras}\label{sec:extras}
+
+\subsection{\ilc{rustdoc}}
+Wie bereits erwähnt ist der Quellcode ausführlich mittels \emph{doc comment}s dokumentiert.
+Mit folgendem Befehl lässt sich daraus eine HTML-Dokumentation in gewohnter ,,Rust-Optik'' generieren, welche im Anschluss unter \ilc{target/doc} zu finden ist:
+
+\begin{lstlisting}[language=bash]
+cargo doc --no-deps --examples --bins
+
+# Alternativ: Inklusive privater Elemente
+cargo doc --no-deps --examples --bins --document-private-items
+\end{lstlisting}
+
+\subsection{Demo CLI}
+Dies ist die Standard-Anwendung, welche beim Aufruf von \ilc{cargo run} ausgeführt wird.
+Es gibt zwei Modi:
+\begin{itemize}
+    \item Zum einen kann man eine Anzahl \textbf{zufälliger Testoperationen} ausführen und diese auf Wunsch inkl. des Ergebisses in einer Textdatei speichern lassen. Dabei ist das Format\footnote{Pro Zeile: \ilc{\{lhs\}\{operator\}\{rhs\}==\{mpa\_lib Ergebnis\}}} so gewählt, dass der komplette Inhalt direkt in eine Python Shell eingefügt werden kann, worauf automatisch alle Ergebnisse mit Pythons Ergebnissen verglichen werden.
+
+    \item Zum anderen gibt es einen \textbf{interaktiven Modus}, der eine einfache REPL\footnote{read-evaluate-print-loop} bietet.
+\end{itemize}
+
+Eine ausführliche Beschreibung ist im Quellcode (\ilc{src/bin/mpa\_demo\_cli.rs}) bzw. als \ilc{rustdoc} (s. o.) verfügbar.
+
+Vefügbare Optionen können zudem angezeigt werden mittels
+\begin{lstlisting}[language=bash]
+cargo run -- --help
+\end{lstlisting}
+
+
+\subsection{Examples}
+Im Ordner \ilc{examples} sind folgende Beispiel Anwendungen der Bibliothek vorhanden:
+
+\begin{minipage}{10cm}
+    \dirtree{%
+        .1 examples/.
+        .2 binomial.rs.
+        .2 exponentiation.rs.
+        .2 simple\_factorial.rs.
+    }
+\end{minipage}
+
+Um eines der Beispiele auszuführen kann man folgenden Befehl benutzen:
+
+\begin{lstlisting}[language=bash]
+cargo run --example binomial
+\end{lstlisting}
+
+Zum Teil beinhalten die Beispiele auch Unit-Tests, welche nicht zusammen mit den normalen Tests der Bibliothek aufgerufen werden. Sie können aber manuell wie folgt ausgeführt werden:
+
+\begin{lstlisting}[language=bash]
+cargo test --example binomial
+
+# bzw. alle auf einmal:
+cargo test --examples
+\end{lstlisting}

@@ -1,0 +1,51 @@
+\documentclass[11pt,parskip=half]{scrartcl} % Lädt die Einstellungen der Artikel-Dokumentklasse des KOMA-Scripts
+
+\input{preamble}
+
+% Titel-Sektion
+\title{Multiple Precision Arithmetics}
+\subtitle{Dokumentation zum Rust Abschlussprojekt}
+\author{Rafael Szydelko}
+
+\begin{document}
+
+\date{\today}
+\maketitle
+
+\paragraph{Aufgabenstellung}
+%\begin{quote}
+    {\slshape
+        Multiprecision-Arithmetik ermöglicht Berechnungen mit einer Genauigkeit, die über
+        die Standardpräzision hinausgeht, indem sie Zahlen mit einer beliebig großen Anzahl von
+        Bits verarbeitet. Ziel dieses Projekts ist, eine kleine Bibliothek zu erstellen, welche die
+        arithmetischen Operationen Addition, Subtraktion und Multiplikation von quasi beliebig
+        großen Ganzzahlen erlaubt.
+
+        Projektaufgaben
+        \begin{itemize}
+            \tightlist
+            \item Implementierung der Multiprecision Operationen in Rust
+            \item Implementierung von Unit-Tests zur Validierung der Ergebnisse
+        \end{itemize}
+    }
+%\end{quote}
+
+% Inhaltsverzeichnis
+\tableofcontents
+
+
+\input{sections/einleitung}
+
+\input{sections/projektverlauf}
+
+\input{sections/projektergebnisse}
+
+\input{sections/implementierungsdetails}
+
+\input{sections/extras}
+
+\input{sections/futureworks}
+
+\input{sections/appendix}
+
+\end{document}

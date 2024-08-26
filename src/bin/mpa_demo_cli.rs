@@ -7,6 +7,9 @@
 //!
 //! There are two modes, each of which is introduced below.
 //! Both require the user to specify an operation (e.g., "add").
+//!
+//! By default (w/o arguments) "add" and the "random test operations mode" is used.
+//!
 //! *For a comprehensive list of all available options and further usage
 //! information, please refer to `cli --help`.*
 //!
@@ -32,6 +35,11 @@
 //! or multiple lines into a Python REPL to verify the respective results.
 //!
 //! #### Examples
+//!
+//! - Run with defaults:
+//!     ```shell
+//!     cargo run --bin cli
+//!     ```
 //!
 //! - Run 2 random addition operations:
 //!     ```shell
@@ -76,9 +84,9 @@ const RAND_TEST_MODE_OPTS: [&'static str; 5] =
     ["min_width", "max_width", "test_count", "seed", "export"];
 
 #[derive(Debug, Parser)]
-#[command(version, about, long_about = None, arg_required_else_help = true)]
+#[command(version, about, long_about = None)]
 pub struct Cli {
-    #[arg(value_enum)]
+    #[arg(value_enum, default_value_t = Operation::Add)]
     operation: Operation,
 
     /// Base for number outputs and where applicable inputs.
