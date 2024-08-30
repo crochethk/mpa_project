@@ -462,7 +462,7 @@ impl MPint {
         carry
     }
 
-    /// In place adds `self` to `rhs`.\
+    /// In place adds `rhs` to `self`.\
     /// Returns a boolean indicating whether an arithmetic overflow occured.
     fn overflowing_add(&mut self, mut rhs: Self) -> bool {
         self.normalize_widths(&mut rhs);
