@@ -388,8 +388,7 @@ impl MPint {
     /// - `Ordering` enum value, representing the relation of `self` to `other`.
     fn cmp_abs(&self, other: &MPint) -> Ordering {
         // Sort by "width"
-        let (wide, short) =
-            if self.len() >= other.len() { (self, other) } else { (other, self) };
+        let (wide, short) = if self.len() >= other.len() { (self, other) } else { (other, self) };
         let wide_is_self = std::ptr::eq(self, wide);
 
         // Check extra part in wider num
@@ -1060,14 +1059,12 @@ mod mpint_tests {
             }
             {
                 let a = mpint![42, 1 << 13, (1 as DigitT).rotate_right(1)];
-                let expected =
-                    concat!("8000000000000000", "0000000000002000", "000000000000002A",);
+                let expected = concat!("8000000000000000", "0000000000002000", "000000000000002A",);
                 assert_eq!(a.to_hex_string(), expected);
             }
             {
                 let a = mpint![D_MAX, D_MAX, D_MAX];
-                let expected =
-                    concat!("FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF",);
+                let expected = concat!("FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF",);
                 assert_eq!(a.to_hex_string(), expected);
             }
         }
@@ -1786,14 +1783,14 @@ mod mpint_tests {
     }
 
     const LARGE_NUM_1: [DigitT; 64] = [
-        26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94, 52, 46,
-        73, 72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21, 75, 13, 96, 25,
-        62, 0, 23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60, 55, 81, 87, 2,
+        26, 57, 93, 1, 70, 36, 14, 42, 77, 64, 29, 44, 65, 3, 56, 84, 66, 88, 38, 94, 52, 46, 73,
+        72, 30, 16, 8, 51, 83, 41, 34, 28, 33, 24, 40, 22, 59, 19, 99, 21, 75, 13, 96, 25, 62, 0,
+        23, 18, 27, 32, 20, 85, 37, 86, 54, 80, 50, 9, 71, 60, 55, 81, 87, 2,
     ];
 
     const LARGE_NUM_2: [DigitT; 64] = [
-        48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41, 0, 42,
-        89, 93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36, 23, 90, 25, 74,
-        57, 82, 53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, D_MAX, 22, 80, 26, 18,
+        48, 96, 67, 81, 52, 61, 27, 58, 6, 59, 73, 33, 95, 91, 77, 60, 94, 76, 86, 41, 0, 42, 89,
+        93, 19, 45, 64, 47, 21, 39, 10, 13, 1, 62, 43, 68, 24, 97, 15, 36, 23, 90, 25, 74, 57, 82,
+        53, 99, 30, 4, 37, 31, 16, 7, 98, 69, 14, 92, 49, D_MAX, 22, 80, 26, 18,
     ];
 }
