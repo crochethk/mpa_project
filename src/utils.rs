@@ -13,9 +13,29 @@ pub fn approx_bit_width(dec_width: usize) -> usize {
     (std::f64::consts::LOG2_10 * dec_width as f64).ceil() as usize
 }
 
-/// Basically a full adder for `u64`
+pub trait OverflowingAdd: Sized {
+    const ONE: Self;
+    fn overflowing_add(self, rhs: Self) -> (Self, bool);
+}
+
+macro_rules! impl_overflowingadd_for_uints {
+    ($($t:ty),*) => {
+        $(
+            impl OverflowingAdd for $t {
+                const ONE: $t = 1 as $t;
+                fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                    self.overflowing_add(rhs)
+                }
+            }
+        )*
+    };
+}
+impl_overflowingadd_for_uints!(u8, u16, u32, u64, u128, usize);
+
+/// Basically a full adder for native unsigned integers (`u8`, `u16`, ...).
 ///
-/// # Explanation
+/// # Explanation based on `u64`
+/// 
 /// - Adding `lhs` to `rhs` can _at most_ have a result of `2^64 + 2^64-1`.
 ///     - This is similar to "carry-bit + `u64::MAX-1`"
 /// - If the `carry` input was provided, the total maximum sum will then at
@@ -23,7 +43,7 @@ pub fn approx_bit_width(dec_width: usize) -> usize {
 /// - The implication is, that there is no way, that both additions will result
 /// in a carry-bit simultaneously
 /// - So it's safe to say, that in the worst-case the end result will be a
-/// saturated "u64 value + carry-bit"
+/// saturated "u64 value" + "carry-bit"
 /// - Simplified example using a ficitonal u4:
 ///     ```plain
 ///     Inputs: lhs=rhs=1111, carry=1
@@ -36,9 +56,9 @@ pub fn approx_bit_width(dec_width: usize) -> usize {
 ///
 ///     ==> Endresult: (1111, c1)
 ///     ```
-pub fn add_with_carry(lhs: u64, rhs: u64, mut carry: bool) -> (u64, bool) {
+pub fn add_with_carry<T: OverflowingAdd>(lhs: T, rhs: T, mut carry: bool) -> (T, bool) {
     let (mut sum, c) = lhs.overflowing_add(rhs);
-    (sum, carry) = sum.overflowing_add(carry as u64);
+    (sum, carry) = if carry { sum.overflowing_add(T::ONE) } else { (sum, carry) };
     (sum, carry || c)
 }
 
@@ -110,14 +130,17 @@ mod tests {
 
     mod test_add_with_carry {
         use super::*;
-        const MAX: u64 = u64::MAX;
+
+        #[allow(non_camel_case_types)]
+        type uint = u64;
+        const MAX: uint = uint::MAX;
         const CARRY: bool = true;
 
         #[test]
         // TC1,2
         fn both_summands_zero() {
-            assert_eq!(add_with_carry(0, 0, !CARRY), (0, false));
-            assert_eq!(add_with_carry(0, 0, CARRY), (1, false));
+            assert_eq!(add_with_carry(0 as uint, 0, !CARRY), (0, false));
+            assert_eq!(add_with_carry(0 as uint, 0, CARRY), (1, false));
         }
 
         #[test]
@@ -148,8 +171,8 @@ mod tests {
         #[test]
         // TC11,12
         fn add_normal_values() {
-            assert_eq!(add_with_carry(123, 456, !CARRY), (579, false));
-            assert_eq!(add_with_carry(123, 456, CARRY), (580, false));
+            assert_eq!(add_with_carry(123 as uint, 456, !CARRY), (579, false));
+            assert_eq!(add_with_carry(123 as uint, 456, CARRY), (580, false));
         }
 
         #[test]
