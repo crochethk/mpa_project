@@ -462,7 +462,7 @@ impl MPint {
         carry
     }
 
-    /// In place adds `self` to `rhs`.\
+    /// In place adds `rhs` to `self`.\
     /// Returns a boolean indicating whether an arithmetic overflow occured.
     fn overflowing_add(&mut self, mut rhs: Self) -> bool {
         self.normalize_widths(&mut rhs);
@@ -1762,7 +1762,6 @@ mod mpint_tests {
             let sys_path: &Bound<'_, PyList> = sys_path.downcast()?;
             sys_path.append(py_module_dir)?;
 
-            // For this to work build.rs is setup to copy the `.py` to the target dir
             let test_helper = py.import_bound(py_module_name)?;
 
             let fn_name = "test_operation_result";
