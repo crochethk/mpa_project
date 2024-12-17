@@ -48,4 +48,118 @@ comparing with the outcome produced by a python interpreter (pyo3). If both outc
 match, the corresponding test passes.
 That is handy, since this way I didn't have to hardcode every single expected result.
 
+---
+> **Notice: Most of the following repo description was generated using AI based on the contents of the project report inside `doc/`.**
+
+## Overview
+The **Multiple Precision Arithmetics (MPA)** library allows for arithmetic operations on integers with arbitrary precision. By supporting operations on arbitrarily large integers, the library overcomes the limitations of standard fixed-width integer types (e.g., `u32`, `u64`), enabling precise calculations in fields such as cryptography, combinatorics, and finance. The library provides functions for addition, subtraction, and multiplication of large integers.
+
+This repository hosts the Rust implementation of the library, complete with unit tests, documentation, and examples.
+
+## Features
+- **Arbitrary Precision Integer Operations**: Handles addition, subtraction, and multiplication of integers of any size.
+- **Unit Tests**: Ensures correctness of arithmetic operations.
+- **Hexadecimal and Decimal Support**: Converts integers to and from hexadecimal and decimal string representations.
+- **CLI for Demonstration**: A simple command-line interface (CLI) to interact with the library and perform operations without writing code.
+- **Documentation**: Detailed API documentation using Rust's `rustdoc`.
+
+## Modules
+The library is divided into the following key modules:
+- **mp_int**: Contains the main data type and arithmetic functions for Multiple Precision Integers (MPI).
+- **utils**: Includes helper functions and structures used by other parts of the library.
+- **CLI**: A demo command-line interface to interact with the library.
+- **Examples**: Various usage examples for better understanding of the library.
+
+## Installation
+
+To use this library in your own Rust project, follow these steps:
+
+1. **Create a new Rust project**:
+   ```bash
+   cargo new my_new_project
+   cd my_new_project
+   ```
+
+2. **Add the `mpa_project` as a dependency**:
+   - Option 1: Add directly from the GitHub repository:
+     ```bash
+     cargo add --git https://github.com/crochethk/mpa_project.git
+     ```
+   - Option 2: Clone the repository locally and add it as a path dependency:
+     ```bash
+     git clone https://github.com/crochethk/mpa_project.git
+     cargo add --path ../mpa_project
+     ```
+
+3. **Use the library**:
+   Replace the contents of `src/main.rs` with:
+   ```rust
+   use mpa_lib::mp_int::*;
+
+   fn main() {
+       println!("{}", mpint!(1, 2));
+   }
+   ```
+   Then, run the project:
+   ```bash
+   cargo run
+   ```
+
+## Library Usage
+
+### Working with MPI
+The `MPint` struct represents a Multiple Precision Integer (MPI) and supports the following operations:
+- **Arithmetic operations**: `+`, `-`, `*`, and more.
+- **Comparison**: `==`, `>`, `>=`, and others.
+- **Construction**: You can create MPIs from native integers, hex or decimal strings.
+
+Example:
+```rust
+let num1 = MPint::new(12345u128);
+let num2 = MPint::from_hex_str("A1F4");
+let num3 = MPint::from_dec_str("12345678901234567890123456789");
+let result = num1 + num2 + num3;
+```
+
+### Arithmetic Operations
+- **Addition & Subtraction**: Implemented using the carry ripple adder technique. Subtraction is handled via two's complement.
+- **Multiplication**: Implemented using a *Product Scanning* approach.
+
+### String Conversion
+- **Hexadecimal**: `to_hex_string()`
+- **Decimal**: `to_dec_string()`
+- **From strings**: `from_hex_str()` and `from_dec_str()`
+
+### Unit Testing
+Unit tests for arithmetic operations are provided. To run all tests, use:
+```bash
+cargo test --all
+```
+
+The library utilizes **Python** for verifying arithmetic results through the `pyo3` crate. This allows for automated validation of results.
+
+## Documentation
+The code is well-documented using `rustdoc`. To generate HTML documentation, run:
+```bash
+cargo doc --no-deps --examples --bins
+```
+The generated documentation can be found under the `target/doc` directory.
+
+## CLI
+The project includes a **Demo CLI** for testing MPI operations without writing Rust code. You can use the following commands to run the demo:
+```bash
+cargo run
+```
+
+To see usage info simply run:
+```bash
+cargo run -- --help
+```
+
+## Future Work
+- Extend support for additional arithmetic operations (division, modular arithmetic).
+- Improve performance and optimize memory usage further.
+- Explore advanced features like support for rational numbers or floating-point precision.
+
+
 
