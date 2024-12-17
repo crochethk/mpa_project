@@ -116,8 +116,8 @@ The `MPint` struct represents a Multiple Precision Integer (MPI) and supports th
 Example:
 ```rust
 let num1 = MPint::new(12345u128);
-let num2 = MPint::from_hex_str("A1F4");
-let num3 = MPint::from_dec_str("12345678901234567890123456789");
+let num2 = MPint::from_hex_str("A1F4").unwrap();
+let num3 = MPint::from_dec_str("12345678901234567890123456789").unwrap();
 let result = num1 + num2 + num3;
 ```
 
